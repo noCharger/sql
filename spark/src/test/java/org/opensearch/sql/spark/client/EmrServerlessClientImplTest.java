@@ -41,6 +41,7 @@ import org.opensearch.sql.common.setting.Settings;
 import org.opensearch.sql.legacy.esdomain.LocalClusterState;
 import org.opensearch.sql.legacy.metrics.Metrics;
 import org.opensearch.sql.opensearch.setting.OpenSearchSettings;
+import org.opensearch.sql.spark.asyncquery.model.SparkSubmitParameters;
 
 @ExtendWith(MockitoExtension.class)
 public class EmrServerlessClientImplTest {
@@ -65,13 +66,14 @@ public class EmrServerlessClientImplTest {
     when(emrServerless.startJobRun(any())).thenReturn(response);
 
     EmrServerlessClientImpl emrServerlessClient = new EmrServerlessClientImpl(emrServerless);
+    String parameters = SparkSubmitParameters.Builder.builder().query(QUERY).build().toString();
+
     emrServerlessClient.startJobRun(
         new StartJobRequest(
-            QUERY,
             EMRS_JOB_NAME,
             EMRS_APPLICATION_ID,
             EMRS_EXECUTION_ROLE,
-            SPARK_SUBMIT_PARAMETERS,
+            parameters,
             new HashMap<>(),
             false,
             DEFAULT_RESULT_INDEX));
@@ -82,8 +84,14 @@ public class EmrServerlessClientImplTest {
     Assertions.assertEquals(
         ENTRY_POINT_START_JAR, startJobRunRequest.getJobDriver().getSparkSubmit().getEntryPoint());
     Assertions.assertEquals(
-        List.of(QUERY, DEFAULT_RESULT_INDEX),
+        List.of(DEFAULT_RESULT_INDEX),
         startJobRunRequest.getJobDriver().getSparkSubmit().getEntryPointArguments());
+    Assertions.assertTrue(
+        startJobRunRequest
+            .getJobDriver()
+            .getSparkSubmit()
+            .getSparkSubmitParameters()
+            .contains(QUERY));
   }
 
   @Test
@@ -96,7 +104,6 @@ public class EmrServerlessClientImplTest {
             () ->
                 emrServerlessClient.startJobRun(
                     new StartJobRequest(
-                        QUERY,
                         EMRS_JOB_NAME,
                         EMRS_APPLICATION_ID,
                         EMRS_EXECUTION_ROLE,
@@ -115,7 +122,6 @@ public class EmrServerlessClientImplTest {
     EmrServerlessClientImpl emrServerlessClient = new EmrServerlessClientImpl(emrServerless);
     emrServerlessClient.startJobRun(
         new StartJobRequest(
-            QUERY,
             EMRS_JOB_NAME,
             EMRS_APPLICATION_ID,
             EMRS_EXECUTION_ROLE,

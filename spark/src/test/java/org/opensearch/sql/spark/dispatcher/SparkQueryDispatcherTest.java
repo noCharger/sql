@@ -140,10 +140,10 @@ public class SparkQueryDispatcherTest {
               {
                 put(FLINT_INDEX_STORE_AWSREGION_KEY, "eu-west-1");
               }
-            });
+            },
+            query);
     when(emrServerlessClient.startJobRun(
             new StartJobRequest(
-                query,
                 "TEST_CLUSTER:non-index-query",
                 EMRS_APPLICATION_ID,
                 EMRS_EXECUTION_ROLE,
@@ -167,7 +167,6 @@ public class SparkQueryDispatcherTest {
     verify(emrServerlessClient, times(1)).startJobRun(startJobRequestArgumentCaptor.capture());
     StartJobRequest expected =
         new StartJobRequest(
-            query,
             "TEST_CLUSTER:non-index-query",
             EMRS_APPLICATION_ID,
             EMRS_EXECUTION_ROLE,
@@ -195,10 +194,10 @@ public class SparkQueryDispatcherTest {
                 put(FLINT_INDEX_STORE_AUTH_USERNAME, "username");
                 put(FLINT_INDEX_STORE_AUTH_PASSWORD, "password");
               }
-            });
+            },
+            query);
     when(emrServerlessClient.startJobRun(
             new StartJobRequest(
-                query,
                 "TEST_CLUSTER:non-index-query",
                 EMRS_APPLICATION_ID,
                 EMRS_EXECUTION_ROLE,
@@ -222,7 +221,6 @@ public class SparkQueryDispatcherTest {
     verify(emrServerlessClient, times(1)).startJobRun(startJobRequestArgumentCaptor.capture());
     StartJobRequest expected =
         new StartJobRequest(
-            query,
             "TEST_CLUSTER:non-index-query",
             EMRS_APPLICATION_ID,
             EMRS_EXECUTION_ROLE,
@@ -248,10 +246,10 @@ public class SparkQueryDispatcherTest {
             new HashMap<>() {
               {
               }
-            });
+            },
+            query);
     when(emrServerlessClient.startJobRun(
             new StartJobRequest(
-                query,
                 "TEST_CLUSTER:non-index-query",
                 EMRS_APPLICATION_ID,
                 EMRS_EXECUTION_ROLE,
@@ -275,7 +273,6 @@ public class SparkQueryDispatcherTest {
     verify(emrServerlessClient, times(1)).startJobRun(startJobRequestArgumentCaptor.capture());
     StartJobRequest expected =
         new StartJobRequest(
-            query,
             "TEST_CLUSTER:non-index-query",
             EMRS_APPLICATION_ID,
             EMRS_EXECUTION_ROLE,
@@ -367,10 +364,10 @@ public class SparkQueryDispatcherTest {
                   {
                     put(FLINT_INDEX_STORE_AWSREGION_KEY, "eu-west-1");
                   }
-                }));
+                },
+                query));
     when(emrServerlessClient.startJobRun(
             new StartJobRequest(
-                query,
                 "TEST_CLUSTER:index-query",
                 EMRS_APPLICATION_ID,
                 EMRS_EXECUTION_ROLE,
@@ -394,7 +391,6 @@ public class SparkQueryDispatcherTest {
     verify(emrServerlessClient, times(1)).startJobRun(startJobRequestArgumentCaptor.capture());
     StartJobRequest expected =
         new StartJobRequest(
-            query,
             "TEST_CLUSTER:index-query",
             EMRS_APPLICATION_ID,
             EMRS_EXECUTION_ROLE,
@@ -421,10 +417,10 @@ public class SparkQueryDispatcherTest {
               {
                 put(FLINT_INDEX_STORE_AWSREGION_KEY, "eu-west-1");
               }
-            });
+            },
+            query);
     when(emrServerlessClient.startJobRun(
             new StartJobRequest(
-                query,
                 "TEST_CLUSTER:non-index-query",
                 EMRS_APPLICATION_ID,
                 EMRS_EXECUTION_ROLE,
@@ -448,7 +444,6 @@ public class SparkQueryDispatcherTest {
     verify(emrServerlessClient, times(1)).startJobRun(startJobRequestArgumentCaptor.capture());
     StartJobRequest expected =
         new StartJobRequest(
-            query,
             "TEST_CLUSTER:non-index-query",
             EMRS_APPLICATION_ID,
             EMRS_EXECUTION_ROLE,
@@ -475,10 +470,10 @@ public class SparkQueryDispatcherTest {
               {
                 put(FLINT_INDEX_STORE_AWSREGION_KEY, "eu-west-1");
               }
-            });
+            },
+            query);
     when(emrServerlessClient.startJobRun(
             new StartJobRequest(
-                query,
                 "TEST_CLUSTER:non-index-query",
                 EMRS_APPLICATION_ID,
                 EMRS_EXECUTION_ROLE,
@@ -502,7 +497,6 @@ public class SparkQueryDispatcherTest {
     verify(emrServerlessClient, times(1)).startJobRun(startJobRequestArgumentCaptor.capture());
     StartJobRequest expected =
         new StartJobRequest(
-            query,
             "TEST_CLUSTER:non-index-query",
             EMRS_APPLICATION_ID,
             EMRS_EXECUTION_ROLE,
@@ -533,10 +527,10 @@ public class SparkQueryDispatcherTest {
                   {
                     put(FLINT_INDEX_STORE_AWSREGION_KEY, "eu-west-1");
                   }
-                }));
+                },
+                query));
     when(emrServerlessClient.startJobRun(
             new StartJobRequest(
-                query,
                 "TEST_CLUSTER:index-query",
                 EMRS_APPLICATION_ID,
                 EMRS_EXECUTION_ROLE,
@@ -560,7 +554,6 @@ public class SparkQueryDispatcherTest {
     verify(emrServerlessClient, times(1)).startJobRun(startJobRequestArgumentCaptor.capture());
     StartJobRequest expected =
         new StartJobRequest(
-            query,
             "TEST_CLUSTER:index-query",
             EMRS_APPLICATION_ID,
             EMRS_EXECUTION_ROLE,
@@ -591,10 +584,10 @@ public class SparkQueryDispatcherTest {
                   {
                     put(FLINT_INDEX_STORE_AWSREGION_KEY, "eu-west-1");
                   }
-                }));
+                },
+                query));
     when(emrServerlessClient.startJobRun(
             new StartJobRequest(
-                query,
                 "TEST_CLUSTER:index-query",
                 EMRS_APPLICATION_ID,
                 EMRS_EXECUTION_ROLE,
@@ -618,7 +611,6 @@ public class SparkQueryDispatcherTest {
     verify(emrServerlessClient, times(1)).startJobRun(startJobRequestArgumentCaptor.capture());
     StartJobRequest expected =
         new StartJobRequest(
-            query,
             "TEST_CLUSTER:index-query",
             EMRS_APPLICATION_ID,
             EMRS_EXECUTION_ROLE,
@@ -645,10 +637,10 @@ public class SparkQueryDispatcherTest {
               {
                 put(FLINT_INDEX_STORE_AWSREGION_KEY, "eu-west-1");
               }
-            });
+            },
+            query);
     when(emrServerlessClient.startJobRun(
             new StartJobRequest(
-                query,
                 "TEST_CLUSTER:index-query",
                 EMRS_APPLICATION_ID,
                 EMRS_EXECUTION_ROLE,
@@ -672,7 +664,6 @@ public class SparkQueryDispatcherTest {
     verify(emrServerlessClient, times(1)).startJobRun(startJobRequestArgumentCaptor.capture());
     StartJobRequest expected =
         new StartJobRequest(
-            query,
             "TEST_CLUSTER:non-index-query",
             EMRS_APPLICATION_ID,
             EMRS_EXECUTION_ROLE,
@@ -699,10 +690,10 @@ public class SparkQueryDispatcherTest {
               {
                 put(FLINT_INDEX_STORE_AWSREGION_KEY, "eu-west-1");
               }
-            });
+            },
+            query);
     when(emrServerlessClient.startJobRun(
             new StartJobRequest(
-                query,
                 "TEST_CLUSTER:non-index-query",
                 EMRS_APPLICATION_ID,
                 EMRS_EXECUTION_ROLE,
@@ -726,7 +717,6 @@ public class SparkQueryDispatcherTest {
     verify(emrServerlessClient, times(1)).startJobRun(startJobRequestArgumentCaptor.capture());
     StartJobRequest expected =
         new StartJobRequest(
-            query,
             "TEST_CLUSTER:non-index-query",
             EMRS_APPLICATION_ID,
             EMRS_EXECUTION_ROLE,
@@ -753,10 +743,10 @@ public class SparkQueryDispatcherTest {
               {
                 put(FLINT_INDEX_STORE_AWSREGION_KEY, "eu-west-1");
               }
-            });
+            },
+            query);
     when(emrServerlessClient.startJobRun(
             new StartJobRequest(
-                query,
                 "TEST_CLUSTER:index-query",
                 EMRS_APPLICATION_ID,
                 EMRS_EXECUTION_ROLE,
@@ -780,7 +770,6 @@ public class SparkQueryDispatcherTest {
     verify(emrServerlessClient, times(1)).startJobRun(startJobRequestArgumentCaptor.capture());
     StartJobRequest expected =
         new StartJobRequest(
-            query,
             "TEST_CLUSTER:non-index-query",
             EMRS_APPLICATION_ID,
             EMRS_EXECUTION_ROLE,
@@ -811,7 +800,7 @@ public class SparkQueryDispatcherTest {
                         EMRS_EXECUTION_ROLE,
                         TEST_CLUSTER_NAME)));
     Assertions.assertEquals(
-        "Bad URI in indexstore configuration of the : my_glue datasoure.",
+        "Bad URI in indexstore configuration for datasource: my_glue.",
         illegalArgumentException.getMessage());
   }
 
@@ -833,7 +822,7 @@ public class SparkQueryDispatcherTest {
                         EMRS_EXECUTION_ROLE,
                         TEST_CLUSTER_NAME)));
     Assertions.assertEquals(
-        "UnSupported datasource type for async queries:: PROMETHEUS",
+        "Unsupported datasource type for async queries: PROMETHEUS",
         unsupportedOperationException.getMessage());
   }
 
@@ -1035,7 +1024,7 @@ public class SparkQueryDispatcherTest {
   }
 
   private String constructExpectedSparkSubmitParameterString(
-      String auth, Map<String, String> authParams) {
+      String auth, Map<String, String> authParams, String query) {
     StringBuilder authParamConfigBuilder = new StringBuilder();
     for (String key : authParams.keySet()) {
       authParamConfigBuilder.append(" --conf ");
@@ -1075,7 +1064,10 @@ public class SparkQueryDispatcherTest {
         + " spark.hive.metastore.glue.role.arn=arn:aws:iam::924196221507:role/FlintOpensearchServiceRole"
         + "  --conf spark.sql.catalog.my_glue=org.opensearch.sql.FlintDelegatingSessionCatalog "
         + " --conf spark.flint.datasource.name=my_glue "
-        + authParamConfigBuilder;
+        + authParamConfigBuilder
+        + " --conf spark.flint.job.query="
+        + query
+        + " ";
   }
 
   private String withStructuredStreaming(String parameters) {

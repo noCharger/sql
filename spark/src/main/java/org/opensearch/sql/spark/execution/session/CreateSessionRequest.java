@@ -22,7 +22,6 @@ public class CreateSessionRequest {
 
   public StartJobRequest getStartJobRequest() {
     return new InteractiveSessionStartJobRequest(
-        "select 1",
         jobName,
         applicationId,
         executionRoleArn,
@@ -33,22 +32,13 @@ public class CreateSessionRequest {
 
   static class InteractiveSessionStartJobRequest extends StartJobRequest {
     public InteractiveSessionStartJobRequest(
-        String query,
         String jobName,
         String applicationId,
         String executionRoleArn,
         String sparkSubmitParams,
         Map<String, String> tags,
         String resultIndex) {
-      super(
-          query,
-          jobName,
-          applicationId,
-          executionRoleArn,
-          sparkSubmitParams,
-          tags,
-          false,
-          resultIndex);
+      super(jobName, applicationId, executionRoleArn, sparkSubmitParams, tags, false, resultIndex);
     }
 
     /** Interactive query keep running. */
