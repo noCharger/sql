@@ -56,6 +56,8 @@ public class EmrServerlessClientImpl implements EMRServerlessClient {
                             .withEntryPointArguments(resultIndex)
                             .withSparkSubmitParameters(startJobRequest.getSparkSubmitParams())));
 
+    logger.info(request.getJobDriver().getSparkSubmit().getSparkSubmitParameters());
+
     StartJobRunResult startJobRunResult =
         AccessController.doPrivileged(
             (PrivilegedAction<StartJobRunResult>)
