@@ -10,6 +10,8 @@ import lombok.Getter;
 import lombok.experimental.UtilityClass;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.opensearch.sql.common.antlr.CaseInsensitiveCharStream;
 import org.opensearch.sql.common.antlr.SyntaxAnalysisErrorListener;
 import org.opensearch.sql.common.antlr.SyntaxCheckException;
@@ -30,6 +32,9 @@ import org.opensearch.sql.spark.flint.FlintIndexType;
  */
 @UtilityClass
 public class SQLQueryUtils {
+
+  private static final Logger LOG = LogManager.getLogger();
+
 
   // TODO Handle cases where the query has multiple table Names.
   public static FullyQualifiedTableName extractFullyQualifiedTableName(String sqlQuery) {
@@ -264,6 +269,7 @@ public class SQLQueryUtils {
                   // todo. Currently, we use contains() api to avoid unescape string. In future, we
                   //  should leverage
                   // https://github.com/apache/spark/blob/v3.5.0/sql/api/src/main/scala/org/apache/spark/sql/catalyst/util/SparkParserUtils.scala#L35 to unescape string literal
+                  LOG.info(String.format("property contains auto refresh: %s"), propertyKey(property.key).toLowerCase(Locale.ROOT).contains("auto_refresh"));
                   if (propertyKey(property.key).toLowerCase(Locale.ROOT).contains("auto_refresh")) {
                     if (propertyValue(property.value).toLowerCase(Locale.ROOT).contains("true")) {
                       indexQueryDetailsBuilder.autoRefresh(true);

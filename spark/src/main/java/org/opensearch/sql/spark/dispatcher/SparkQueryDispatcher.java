@@ -8,6 +8,8 @@ package org.opensearch.sql.spark.dispatcher;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.AllArgsConstructor;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 import org.opensearch.client.Client;
 import org.opensearch.sql.datasource.DataSourceService;
@@ -33,6 +35,8 @@ import org.opensearch.sql.spark.utils.SQLQueryUtils;
 /** This class takes care of understanding query and dispatching job query to emr serverless. */
 @AllArgsConstructor
 public class SparkQueryDispatcher {
+
+  private static final Logger LOG = LogManager.getLogger();
 
   public static final String INDEX_TAG_KEY = "index";
   public static final String DATASOURCE_TAG_KEY = "datasource";
@@ -72,13 +76,19 @@ public class SparkQueryDispatcher {
             .tags(getDefaultTagsForJobSubmission(dispatchQueryRequest))
             .queryId(AsyncQueryId.newAsyncQueryId(dataSourceMetadata.getName()));
 
+    Boolean flag = SQLQueryUtils.isFlintExtensionQuery(dispatchQueryRequest.getQuery());
+    LOG.info(String.format("isFlintExtensionQuery: %s", flag));
+
     // override asyncQueryHandler with specific.
     if (LangType.SQL.equals(dispatchQueryRequest.getLangType())
-        && SQLQueryUtils.isFlintExtensionQuery(dispatchQueryRequest.getQuery())) {
+        && flag) {
       IndexQueryDetails indexQueryDetails =
           SQLQueryUtils.extractIndexDetails(dispatchQueryRequest.getQuery());
       fillMissingDetails(dispatchQueryRequest, indexQueryDetails);
       contextBuilder.indexQueryDetails(indexQueryDetails);
+
+      LOG.info(String.format("Index query action type: %s", indexQueryDetails.getIndexQueryActionType()));
+      LOG.info(String.format("indexQueryDetails.isAutoRefresh: %s", indexQueryDetails.isAutoRefresh()));
 
       if (IndexQueryActionType.DROP.equals(indexQueryDetails.getIndexQueryActionType())) {
         asyncQueryHandler = createIndexDMLHandler(emrServerlessClient);
@@ -93,6 +103,7 @@ public class SparkQueryDispatcher {
             new BatchQueryHandler(emrServerlessClient, jobExecutionResponseReader, leaseManager);
       }
     }
+    LOG.info(String.format("Test query type: %s", asyncQueryHandler.getClass().getName()));
     return asyncQueryHandler.submit(dispatchQueryRequest, contextBuilder.build());
   }
 
