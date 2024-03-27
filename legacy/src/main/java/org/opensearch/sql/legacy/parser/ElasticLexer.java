@@ -49,7 +49,7 @@ public class ElasticLexer extends MySqlLexer {
       this.ch = charAt(pos);
 
       stringVal = subString(mark, bufPos);
-      Token tok = keywods.getKeyword(stringVal);
+      Token tok = keywords.getKeyword(stringVal);
       if (tok != null) {
         token = tok;
       } else {
@@ -79,7 +79,7 @@ public class ElasticLexer extends MySqlLexer {
       this.ch = charAt(pos);
 
       stringVal = addSymbol();
-      Token tok = keywods.getKeyword(stringVal);
+      Token tok = keywords.getKeyword(stringVal);
       if (tok != null) {
         token = tok;
       } else {

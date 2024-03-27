@@ -15,7 +15,7 @@ import com.alibaba.druid.sql.ast.expr.SQLMethodInvokeExpr;
 import com.alibaba.druid.sql.ast.expr.SQLNotExpr;
 import com.alibaba.druid.sql.ast.statement.SQLSelectItem;
 import com.alibaba.druid.sql.ast.statement.SQLSelectOrderByItem;
-import com.alibaba.druid.sql.dialect.mysql.ast.expr.MySqlSelectGroupByExpr;
+import com.alibaba.druid.sql.dialect.mysql.ast.expr.MySqlOrderingExpr;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock;
 import java.util.List;
 import org.opensearch.sql.legacy.utils.Util;
@@ -56,8 +56,8 @@ abstract class SQLClause<T> {
       args.set(args.indexOf(expr), nestedFunc);
     } else if (parent instanceof SQLSelectItem) {
       ((SQLSelectItem) parent).setExpr(nestedFunc);
-    } else if (parent instanceof MySqlSelectGroupByExpr) {
-      ((MySqlSelectGroupByExpr) parent).setExpr(nestedFunc);
+    } else if (parent instanceof MySqlOrderingExpr) {
+      ((MySqlOrderingExpr) parent).setExpr(nestedFunc);
     } else if (parent instanceof SQLSelectOrderByItem) {
       ((SQLSelectOrderByItem) parent).setExpr(nestedFunc);
     } else if (parent instanceof SQLInSubQueryExpr) {

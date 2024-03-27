@@ -7,10 +7,7 @@ package org.opensearch.sql.legacy.parser;
 
 import static org.opensearch.sql.legacy.utils.Util.NESTED_JOIN_TYPE;
 
-import com.alibaba.druid.sql.ast.SQLCommentHint;
-import com.alibaba.druid.sql.ast.SQLExpr;
-import com.alibaba.druid.sql.ast.SQLOrderBy;
-import com.alibaba.druid.sql.ast.SQLOrderingSpecification;
+import com.alibaba.druid.sql.ast.*;
 import com.alibaba.druid.sql.ast.expr.SQLBinaryOpExpr;
 import com.alibaba.druid.sql.ast.expr.SQLBinaryOperator;
 import com.alibaba.druid.sql.ast.expr.SQLIdentifierExpr;
@@ -19,21 +16,15 @@ import com.alibaba.druid.sql.ast.expr.SQLMethodInvokeExpr;
 import com.alibaba.druid.sql.ast.expr.SQLNullExpr;
 import com.alibaba.druid.sql.ast.expr.SQLPropertyExpr;
 import com.alibaba.druid.sql.ast.expr.SQLQueryExpr;
-import com.alibaba.druid.sql.ast.statement.SQLDeleteStatement;
-import com.alibaba.druid.sql.ast.statement.SQLExprTableSource;
-import com.alibaba.druid.sql.ast.statement.SQLJoinTableSource;
-import com.alibaba.druid.sql.ast.statement.SQLSelectGroupByClause;
-import com.alibaba.druid.sql.ast.statement.SQLSelectItem;
-import com.alibaba.druid.sql.ast.statement.SQLSelectOrderByItem;
-import com.alibaba.druid.sql.ast.statement.SQLTableSource;
-import com.alibaba.druid.sql.ast.statement.SQLUnionQuery;
-import com.alibaba.druid.sql.dialect.mysql.ast.expr.MySqlSelectGroupByExpr;
-import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock;
+import com.alibaba.druid.sql.ast.statement.*;
+import com.alibaba.druid.sql.dialect.mysql.ast.expr.MySqlOrderingExpr;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock;
 import org.opensearch.sql.legacy.domain.Condition;
 import org.opensearch.sql.legacy.domain.Delete;
 import org.opensearch.sql.legacy.domain.Field;
@@ -144,8 +135,8 @@ public class SqlParser {
     List<SQLExpr> standardGroupBys = new ArrayList<>();
     for (SQLExpr sqlExpr : items) {
       // todo: mysql expr patch
-      if (sqlExpr instanceof MySqlSelectGroupByExpr) {
-        MySqlSelectGroupByExpr sqlSelectGroupByExpr = (MySqlSelectGroupByExpr) sqlExpr;
+      if (sqlExpr instanceof MySqlOrderingExpr) {
+        MySqlOrderingExpr sqlSelectGroupByExpr = (MySqlOrderingExpr) sqlExpr;
         sqlExpr = sqlSelectGroupByExpr.getExpr();
       }
 
@@ -231,10 +222,7 @@ public class SqlParser {
   }
 
   private void addOrderByToSelect(
-      Select select,
-      MySqlSelectQueryBlock queryBlock,
-      List<SQLSelectOrderByItem> items,
-      String alias)
+      Select select, MySqlSelectQueryBlock queryBlock, List<SQLSelectOrderByItem> items, String alias)
       throws SqlParseException {
 
     Map<String, SQLExpr> aliasesToExpressions =
@@ -321,7 +309,7 @@ public class SqlParser {
     return operator == SQLBinaryOperator.Is || operator == SQLBinaryOperator.IsNot;
   }
 
-  private void findLimit(MySqlSelectQueryBlock.Limit limit, Select select) {
+  private void findLimit(SQLLimit limit, Select select) {
 
     if (limit == null) {
       return;
@@ -427,7 +415,7 @@ public class SqlParser {
     return aliasToOrderBys;
   }
 
-  private void updateJoinLimit(MySqlSelectQueryBlock.Limit limit, JoinSelect joinSelect) {
+  private void updateJoinLimit(SQLLimit limit, JoinSelect joinSelect) {
     if (limit != null && limit.getRowCount() != null) {
       int sizeLimit = Integer.parseInt(limit.getRowCount().toString());
       joinSelect.setTotalLimit(sizeLimit);

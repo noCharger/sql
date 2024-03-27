@@ -12,6 +12,7 @@ import static org.opensearch.sql.legacy.expression.core.ExpressionFactory.of;
 import static org.opensearch.sql.legacy.expression.core.operator.ScalarOperation.ADD;
 import static org.opensearch.sql.legacy.expression.core.operator.ScalarOperation.LOG;
 
+import com.alibaba.druid.DbType;
 import com.alibaba.druid.sql.SQLUtils;
 import com.alibaba.druid.sql.ast.expr.SQLAggregateExpr;
 import com.alibaba.druid.sql.ast.expr.SQLQueryExpr;
@@ -318,7 +319,7 @@ public class SQLAggregationParserTest {
   }
 
   private MySqlSelectQueryBlock mYSqlSelectQueryBlock(String sql) {
-    String dbType = JdbcConstants.MYSQL;
+    DbType dbType = JdbcConstants.MYSQL;
     SQLQueryExpr sqlQueryExpr = (SQLQueryExpr) SQLUtils.toSQLExpr(sql, dbType);
     return ((MySqlSelectQueryBlock) sqlQueryExpr.getSubQuery().getQuery());
   }

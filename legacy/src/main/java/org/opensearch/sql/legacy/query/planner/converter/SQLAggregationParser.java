@@ -12,7 +12,7 @@ import com.alibaba.druid.sql.ast.expr.SQLCastExpr;
 import com.alibaba.druid.sql.ast.expr.SQLIdentifierExpr;
 import com.alibaba.druid.sql.ast.expr.SQLMethodInvokeExpr;
 import com.alibaba.druid.sql.ast.statement.SQLSelectItem;
-import com.alibaba.druid.sql.dialect.mysql.ast.expr.MySqlSelectGroupByExpr;
+import com.alibaba.druid.sql.dialect.mysql.ast.expr.MySqlOrderingExpr;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock;
 import com.alibaba.druid.sql.dialect.mysql.visitor.MySqlASTVisitorAdapter;
 import com.google.common.base.Strings;
@@ -98,7 +98,7 @@ public class SQLAggregationParser {
     // 1. fetch the expr from groupby clause.
     List<SQLExpr> groupByKeyExprList =
         queryBlock.getGroupBy().getItems().stream()
-            .map(item -> ((MySqlSelectGroupByExpr) item).getExpr())
+            .map(item -> ((MySqlOrderingExpr) item).getExpr())
             .collect(Collectors.toList());
 
     // 2. find the group expr from select.

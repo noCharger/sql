@@ -18,7 +18,7 @@ import com.alibaba.druid.sql.ast.statement.SQLJoinTableSource;
 import com.alibaba.druid.sql.ast.statement.SQLSelectItem;
 import com.alibaba.druid.sql.ast.statement.SQLSelectOrderByItem;
 import com.alibaba.druid.sql.ast.statement.SQLTableSource;
-import com.alibaba.druid.sql.dialect.mysql.ast.expr.MySqlSelectGroupByExpr;
+import com.alibaba.druid.sql.dialect.mysql.ast.expr.MySqlOrderingExpr;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock;
 import com.alibaba.druid.sql.dialect.mysql.visitor.MySqlASTVisitorAdapter;
 import com.alibaba.druid.sql.parser.ParserException;
@@ -233,7 +233,7 @@ public class TermFieldRewriter extends MySqlASTVisitorAdapter {
         || parent instanceof SQLInListExpr
         || parent instanceof SQLInSubQueryExpr
         || parent instanceof SQLSelectOrderByItem
-        || parent instanceof MySqlSelectGroupByExpr;
+        || parent instanceof MySqlOrderingExpr;
   }
 
   private boolean isBinaryExprWithValidOperators(SQLObject expr) {

@@ -7,6 +7,7 @@ package org.opensearch.sql.legacy.unittest.planner.converter;
 
 import static org.junit.Assert.assertTrue;
 
+import com.alibaba.druid.DbType;
 import com.alibaba.druid.sql.SQLUtils;
 import com.alibaba.druid.sql.ast.expr.SQLQueryExpr;
 import com.alibaba.druid.util.JdbcConstants;
@@ -70,7 +71,7 @@ public class SQLToOperatorConverterTest {
   }
 
   private SQLQueryExpr toExpr(String sql) {
-    String dbType = JdbcConstants.MYSQL;
+    DbType dbType = JdbcConstants.MYSQL;
     return (SQLQueryExpr) SQLUtils.toSQLExpr(sql, dbType);
   }
 }

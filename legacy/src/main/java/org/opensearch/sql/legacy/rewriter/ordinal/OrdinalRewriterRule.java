@@ -12,7 +12,7 @@ import com.alibaba.druid.sql.ast.expr.SQLQueryExpr;
 import com.alibaba.druid.sql.ast.statement.SQLSelectItem;
 import com.alibaba.druid.sql.ast.statement.SQLSelectOrderByItem;
 import com.alibaba.druid.sql.ast.statement.SQLSelectQuery;
-import com.alibaba.druid.sql.dialect.mysql.ast.expr.MySqlSelectGroupByExpr;
+import com.alibaba.druid.sql.dialect.mysql.ast.expr.MySqlOrderingExpr;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock;
 import com.alibaba.druid.sql.dialect.mysql.visitor.MySqlASTVisitorAdapter;
 import com.alibaba.druid.sql.parser.SQLExprParser;
@@ -78,7 +78,7 @@ public class OrdinalRewriterRule implements RewriteRule<SQLQueryExpr> {
               ((MySqlSelectQueryBlock) exprOrder.getSubQuery().getQuery()).getSelectList();
 
           @Override
-          public boolean visit(MySqlSelectGroupByExpr groupByExpr) {
+          public boolean visit(MySqlOrderingExpr groupByExpr) {
             SQLExpr expr = groupByExpr.getExpr();
             if (expr instanceof SQLIntegerExpr) {
               Integer ordinalValue = ((SQLIntegerExpr) expr).getNumber().intValue();
@@ -134,8 +134,8 @@ public class OrdinalRewriterRule implements RewriteRule<SQLQueryExpr> {
     return query.getGroupBy().getItems().stream()
         .anyMatch(
             x ->
-                x instanceof MySqlSelectGroupByExpr
-                    && ((MySqlSelectGroupByExpr) x).getExpr() instanceof SQLIntegerExpr);
+                x instanceof MySqlOrderingExpr
+                    && ((MySqlOrderingExpr) x).getExpr() instanceof SQLIntegerExpr);
   }
 
   private boolean hasOrderByWithOrdinals(MySqlSelectQueryBlock query) {

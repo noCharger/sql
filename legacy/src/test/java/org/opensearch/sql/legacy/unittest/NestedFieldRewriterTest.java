@@ -20,7 +20,7 @@ import com.alibaba.druid.sql.ast.statement.SQLSelectQuery;
 import com.alibaba.druid.sql.ast.statement.SQLSelectQueryBlock;
 import com.alibaba.druid.sql.ast.statement.SQLTableSource;
 import com.alibaba.druid.sql.ast.statement.SQLUnionQuery;
-import com.alibaba.druid.sql.dialect.mysql.ast.expr.MySqlSelectGroupByExpr;
+import com.alibaba.druid.sql.dialect.mysql.ast.expr.MySqlOrderingExpr;
 import java.util.List;
 import org.junit.Test;
 import org.opensearch.sql.legacy.rewriter.nestedfield.NestedFieldRewriter;
@@ -601,8 +601,8 @@ public class NestedFieldRewriterTest {
         .forEach(
             i ->
                 assertEquals(
-                    ((MySqlSelectGroupByExpr) expectedGroupby.get(i)).getExpr(),
-                    ((MySqlSelectGroupByExpr) actualGroupby.get(i)).getExpr()));
+                    ((MySqlOrderingExpr) expectedGroupby.get(i)).getExpr(),
+                    ((MySqlOrderingExpr) actualGroupby.get(i)).getExpr()));
   }
 
   private void assertTable(SQLTableSource expect, SQLTableSource actual) {
