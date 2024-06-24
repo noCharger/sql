@@ -10,6 +10,9 @@ import static org.opensearch.sql.spark.data.constants.SparkConstants.STATUS_FIEL
 import static org.opensearch.sql.spark.dispatcher.SparkQueryDispatcher.JOB_TYPE_TAG_KEY;
 import static org.opensearch.sql.spark.metrics.EmrMetrics.EMR_BATCH_QUERY_JOBS_CREATION_COUNT;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.amazonaws.services.emrserverless.model.GetJobRunResult;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +36,8 @@ import org.opensearch.sql.spark.response.JobExecutionResponseReader;
  */
 @RequiredArgsConstructor
 public class BatchQueryHandler extends AsyncQueryHandler {
+  private static final Logger LOG = LogManager.getLogger();
+
   protected final EMRServerlessClient emrServerlessClient;
   protected final JobExecutionResponseReader jobExecutionResponseReader;
   protected final LeaseManager leaseManager;
@@ -73,6 +78,12 @@ public class BatchQueryHandler extends AsyncQueryHandler {
     Map<String, String> tags = context.getTags();
     DataSourceMetadata dataSourceMetadata = context.getDataSourceMetadata();
 
+    // TODO: Hacky query write, should use query visitor
+    String query = dispatchQueryRequest.getQuery();
+    LOG.info("BatchQueryHandler - original query: " + query);
+    String newQuery = query.replace("auto_refresh = true", "auto_refresh = false");
+    LOG.info("BatchQueryHandler - newQuery: " + newQuery);
+
     tags.put(JOB_TYPE_TAG_KEY, JobType.BATCH.getText());
     StartJobRequest startJobRequest =
         new StartJobRequest(
@@ -83,7 +94,7 @@ public class BatchQueryHandler extends AsyncQueryHandler {
             SparkSubmitParameters.builder()
                 .clusterName(clusterName)
                 .dataSource(context.getDataSourceMetadata())
-                .query(dispatchQueryRequest.getQuery())
+                .query(newQuery)
                 .build()
                 .acceptModifier(dispatchQueryRequest.getSparkSubmitParameterModifier())
                 .toString(),
