@@ -13,6 +13,8 @@ import static org.opensearch.sql.spark.metrics.EmrMetrics.EMR_BATCH_QUERY_JOBS_C
 import com.amazonaws.services.emrserverless.model.GetJobRunResult;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 import org.opensearch.sql.datasource.model.DataSourceMetadata;
 import org.opensearch.sql.spark.asyncquery.model.AsyncQueryJobMetadata;
@@ -37,6 +39,8 @@ public class BatchQueryHandler extends AsyncQueryHandler {
   protected final JobExecutionResponseReader jobExecutionResponseReader;
   protected final LeaseManager leaseManager;
   protected final MetricsService metricsService;
+
+  private static final Logger LOG = LogManager.getLogger();
 
   @Override
   protected JSONObject getResponseFromResultIndex(AsyncQueryJobMetadata asyncQueryJobMetadata) {
@@ -72,6 +76,11 @@ public class BatchQueryHandler extends AsyncQueryHandler {
     String clusterName = dispatchQueryRequest.getClusterName();
     Map<String, String> tags = context.getTags();
     DataSourceMetadata dataSourceMetadata = context.getDataSourceMetadata();
+    // TODO: Hacky query write, should use query visitor
+    String query = dispatchQueryRequest.getQuery();
+    LOG.info("BatchQueryHandler - original query: " + query);
+    String newQuery = query.replace("auto_refresh = true", "auto_refresh = false");
+    LOG.info("BatchQueryHandler - newQuery: " + newQuery);
 
     tags.put(JOB_TYPE_TAG_KEY, JobType.BATCH.getText());
     StartJobRequest startJobRequest =
@@ -83,7 +92,7 @@ public class BatchQueryHandler extends AsyncQueryHandler {
             SparkSubmitParameters.builder()
                 .clusterName(clusterName)
                 .dataSource(context.getDataSourceMetadata())
-                .query(dispatchQueryRequest.getQuery())
+                .query(newQuery)
                 .build()
                 .acceptModifier(dispatchQueryRequest.getSparkSubmitParameterModifier())
                 .toString(),

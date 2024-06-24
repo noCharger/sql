@@ -5,6 +5,8 @@
 
 package org.opensearch.sql.spark.dispatcher;
 
+import static org.opensearch.sql.spark.dispatcher.model.FlintIndexOptions.AUTO_REFRESH;
+
 import java.util.HashMap;
 import java.util.Map;
 import lombok.AllArgsConstructor;
@@ -75,15 +77,51 @@ public class SparkQueryDispatcher {
 
   private AsyncQueryHandler getQueryHandlerForFlintExtensionQuery(
       IndexQueryDetails indexQueryDetails) {
+
     if (isEligibleForIndexDMLHandling(indexQueryDetails)) {
       return queryHandlerFactory.getIndexDMLHandler();
-    } else if (isEligibleForStreamingQuery(indexQueryDetails)) {
-      return queryHandlerFactory.getStreamingQueryHandler();
-    } else if (IndexQueryActionType.CREATE.equals(indexQueryDetails.getIndexQueryActionType())) {
-      // Create should be handled by batch handler. This is to avoid DROP index incorrectly cancel
-      // an interactive job.
+    }
+
+    // Create with ( auto_refresh = true)
+    Boolean isCreate =
+        IndexQueryActionType.CREATE.equals(indexQueryDetails.getIndexQueryActionType());
+    if (isCreate) {
+      if (indexQueryDetails.getFlintIndexOptions().autoRefresh()) {
+        // Step 1: Set auto_refresh to false
+        indexQueryDetails.getFlintIndexOptions().setOption(AUTO_REFRESH, "false");
+        // Step 2: Register refresh job as query scheduler
+        // TODO: Register refresh job as query scheduler
+      }
       return queryHandlerFactory.getBatchQueryHandler();
-    } else if (IndexQueryActionType.REFRESH.equals(indexQueryDetails.getIndexQueryActionType())) {
+    }
+
+    // Alter
+    // with
+    //  ( auto_refresh = false) - DML
+    //  () - reject
+    //  (auto_refresh = true) will not
+    Boolean isAlterQuery =
+        IndexQueryActionType.ALTER.equals(indexQueryDetails.getIndexQueryActionType());
+    if (isAlterQuery) {
+      Boolean has_auto_refresh =
+          indexQueryDetails.getFlintIndexOptions().getProvidedOptions().containsKey("auto_refresh");
+      if (has_auto_refresh) {
+        if (indexQueryDetails.getFlintIndexOptions().autoRefresh()) {
+          // Step 1: Set auto_refresh to false
+          indexQueryDetails.getFlintIndexOptions().setOption(AUTO_REFRESH, "false");
+          // Step 2: Register refresh job as query scheduler
+          // TODO: Register refresh job as query scheduler
+        } else {
+          // TODO: remove query scheduler
+        }
+        return queryHandlerFactory.getIndexDMLHandler();
+      } else {
+        throw new IllegalArgumentException("Alter should have auto_refresh");
+      }
+    }
+
+    if (IndexQueryActionType.REFRESH.equals(indexQueryDetails.getIndexQueryActionType())) {
+      // Only to indexes with the auto-refresh option disabled.
       // Manual refresh should be handled by batch handler
       return queryHandlerFactory.getRefreshQueryHandler();
     } else {
@@ -106,24 +144,18 @@ public class SparkQueryDispatcher {
     return indexQueryDetails;
   }
 
-  private boolean isEligibleForStreamingQuery(IndexQueryDetails indexQueryDetails) {
-    Boolean isCreateAutoRefreshIndex =
-        IndexQueryActionType.CREATE.equals(indexQueryDetails.getIndexQueryActionType())
-            && indexQueryDetails.getFlintIndexOptions().autoRefresh();
-    Boolean isAlterQuery =
-        IndexQueryActionType.ALTER.equals(indexQueryDetails.getIndexQueryActionType());
-    return isCreateAutoRefreshIndex || isAlterQuery;
-  }
+  //  private boolean isEligibleForStreamingQuery(IndexQueryDetails indexQueryDetails) {
+  //    Boolean isCreateAutoRefreshIndex =
+  //        IndexQueryActionType.CREATE.equals(indexQueryDetails.getIndexQueryActionType())
+  //            && indexQueryDetails.getFlintIndexOptions().autoRefresh();
+  //    Boolean isAlterQuery =
+  //        IndexQueryActionType.ALTER.equals(indexQueryDetails.getIndexQueryActionType());
+  //    return isCreateAutoRefreshIndex || isAlterQuery;
+  //  }
 
   private boolean isEligibleForIndexDMLHandling(IndexQueryDetails indexQueryDetails) {
     return IndexQueryActionType.DROP.equals(indexQueryDetails.getIndexQueryActionType())
-        || IndexQueryActionType.VACUUM.equals(indexQueryDetails.getIndexQueryActionType())
-        || (IndexQueryActionType.ALTER.equals(indexQueryDetails.getIndexQueryActionType())
-            && (indexQueryDetails
-                    .getFlintIndexOptions()
-                    .getProvidedOptions()
-                    .containsKey("auto_refresh")
-                && !indexQueryDetails.getFlintIndexOptions().autoRefresh()));
+        || IndexQueryActionType.VACUUM.equals(indexQueryDetails.getIndexQueryActionType());
   }
 
   public JSONObject getQueryResponse(AsyncQueryJobMetadata asyncQueryJobMetadata) {

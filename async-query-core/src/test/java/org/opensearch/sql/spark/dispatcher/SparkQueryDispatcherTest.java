@@ -588,31 +588,33 @@ public class SparkQueryDispatcherTest {
     when(emrServerlessClientFactory.getClient()).thenReturn(emrServerlessClient);
     HashMap<String, String> tags = new HashMap<>();
     tags.put(DATASOURCE_TAG_KEY, MY_GLUE);
-    tags.put(INDEX_TAG_KEY, "flint_mv_1");
     tags.put(CLUSTER_NAME_TAG_KEY, TEST_CLUSTER_NAME);
-    tags.put(JOB_TYPE_TAG_KEY, JobType.STREAMING.getText());
+    tags.put(JOB_TYPE_TAG_KEY, JobType.BATCH.getText());
+
     String query =
         "CREATE MATERIALIZED VIEW mv_1 AS query=select * from my_glue.default.logs WITH"
             + " (auto_refresh = true)";
+    String actual =
+        "CREATE MATERIALIZED VIEW mv_1 AS query=select * from my_glue.default.logs WITH"
+            + " (auto_refresh = false)";
     String sparkSubmitParameters =
-        withStructuredStreaming(
-            constructExpectedSparkSubmitParameterString(
-                "sigv4",
-                new HashMap<>() {
-                  {
-                    put(FLINT_INDEX_STORE_AWSREGION_KEY, "eu-west-1");
-                  }
-                },
-                query));
+        constructExpectedSparkSubmitParameterString(
+            "sigv4",
+            new HashMap<>() {
+              {
+                put(FLINT_INDEX_STORE_AWSREGION_KEY, "eu-west-1");
+              }
+            },
+            actual);
     StartJobRequest expected =
         new StartJobRequest(
-            "TEST_CLUSTER:streaming:flint_mv_1",
+            "TEST_CLUSTER:batch",
             null,
             EMRS_APPLICATION_ID,
             EMRS_EXECUTION_ROLE,
             sparkSubmitParameters,
             tags,
-            true,
+            false,
             "query_execution_result_my_glue");
     when(emrServerlessClient.startJobRun(expected)).thenReturn(EMR_JOB_ID);
     DataSourceMetadata dataSourceMetadata = constructMyGlueDataSourceMetadata();
