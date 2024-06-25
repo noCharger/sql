@@ -55,10 +55,10 @@ import org.opensearch.sql.spark.metrics.MetricsService;
 import org.opensearch.sql.spark.metrics.OpenSearchMetricsService;
 import org.opensearch.sql.spark.response.JobExecutionResponseReader;
 import org.opensearch.sql.spark.response.OpenSearchJobExecutionResponseReader;
+import org.opensearch.threadpool.ThreadPool;
 
 @RequiredArgsConstructor
 public class AsyncExecutorServiceModule extends AbstractModule {
-
   @Override
   protected void configure() {}
 
@@ -92,9 +92,10 @@ public class AsyncExecutorServiceModule extends AbstractModule {
       DataSourceService dataSourceService,
       SessionManager sessionManager,
       QueryHandlerFactory queryHandlerFactory,
-      QueryIdProvider queryIdProvider) {
+      QueryIdProvider queryIdProvider,
+      ThreadPool threadPool) {
     return new SparkQueryDispatcher(
-        dataSourceService, sessionManager, queryHandlerFactory, queryIdProvider);
+        dataSourceService, sessionManager, queryHandlerFactory, queryIdProvider, threadPool);
   }
 
   @Provides

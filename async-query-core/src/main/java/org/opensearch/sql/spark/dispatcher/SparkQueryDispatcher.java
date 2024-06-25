@@ -25,6 +25,7 @@ import org.opensearch.sql.spark.dispatcher.model.JobType;
 import org.opensearch.sql.spark.execution.session.SessionManager;
 import org.opensearch.sql.spark.rest.model.LangType;
 import org.opensearch.sql.spark.utils.SQLQueryUtils;
+import org.opensearch.threadpool.ThreadPool;
 
 /** This class takes care of understanding query and dispatching job query to emr serverless. */
 @AllArgsConstructor
@@ -39,6 +40,7 @@ public class SparkQueryDispatcher {
   private final SessionManager sessionManager;
   private final QueryHandlerFactory queryHandlerFactory;
   private final QueryIdProvider queryIdProvider;
+  private final ThreadPool threadPool;
 
   public DispatchQueryResponse dispatch(
       DispatchQueryRequest dispatchQueryRequest,

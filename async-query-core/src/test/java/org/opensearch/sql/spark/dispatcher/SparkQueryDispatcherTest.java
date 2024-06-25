@@ -78,6 +78,7 @@ import org.opensearch.sql.spark.leasemanager.LeaseManager;
 import org.opensearch.sql.spark.metrics.MetricsService;
 import org.opensearch.sql.spark.response.JobExecutionResponseReader;
 import org.opensearch.sql.spark.rest.model.LangType;
+import org.opensearch.threadpool.ThreadPool;
 
 @ExtendWith(MockitoExtension.class)
 public class SparkQueryDispatcherTest {
@@ -96,6 +97,8 @@ public class SparkQueryDispatcherTest {
   @Mock private QueryIdProvider queryIdProvider;
   @Mock private AsyncQueryRequestContext asyncQueryRequestContext;
   @Mock private MetricsService metricsService;
+
+  @Mock private ThreadPool threadPool;
 
   @Mock(answer = RETURNS_DEEP_STUBS)
   private Session session;
@@ -123,7 +126,7 @@ public class SparkQueryDispatcherTest {
             metricsService);
     sparkQueryDispatcher =
         new SparkQueryDispatcher(
-            dataSourceService, sessionManager, queryHandlerFactory, queryIdProvider);
+            dataSourceService, sessionManager, queryHandlerFactory, queryIdProvider, threadPool);
   }
 
   @Test
@@ -803,7 +806,7 @@ public class SparkQueryDispatcherTest {
     QueryHandlerFactory queryHandlerFactory = mock(QueryHandlerFactory.class);
     sparkQueryDispatcher =
         new SparkQueryDispatcher(
-            dataSourceService, sessionManager, queryHandlerFactory, queryIdProvider);
+            dataSourceService, sessionManager, queryHandlerFactory, queryIdProvider, threadPool);
 
     String query =
         "ALTER INDEX elb_and_requestUri ON my_glue.default.http_logs WITH"
@@ -828,7 +831,7 @@ public class SparkQueryDispatcherTest {
     QueryHandlerFactory queryHandlerFactory = mock(QueryHandlerFactory.class);
     sparkQueryDispatcher =
         new SparkQueryDispatcher(
-            dataSourceService, sessionManager, queryHandlerFactory, queryIdProvider);
+            dataSourceService, sessionManager, queryHandlerFactory, queryIdProvider, threadPool);
 
     String query = "DROP INDEX elb_and_requestUri ON my_glue.default.http_logs";
     DataSourceMetadata dataSourceMetadata = constructMyGlueDataSourceMetadata();
@@ -851,7 +854,7 @@ public class SparkQueryDispatcherTest {
     QueryHandlerFactory queryHandlerFactory = mock(QueryHandlerFactory.class);
     sparkQueryDispatcher =
         new SparkQueryDispatcher(
-            dataSourceService, sessionManager, queryHandlerFactory, queryIdProvider);
+            dataSourceService, sessionManager, queryHandlerFactory, queryIdProvider, threadPool);
 
     String query = "VACUUM INDEX elb_and_requestUri ON my_glue.default.http_logs";
     DataSourceMetadata dataSourceMetadata = constructMyGlueDataSourceMetadata();
