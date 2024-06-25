@@ -275,7 +275,7 @@ public class AsyncQueryExecutorServiceSpec extends OpenSearchIntegTestCase {
                 sessionConfigSupplier,
                 sessionIdProvider),
             queryHandlerFactory,
-            new DatasourceEmbeddedQueryIdProvider());
+            new DatasourceEmbeddedQueryIdProvider(), this.client.threadPool());
     return new AsyncQueryExecutorServiceImpl(
         asyncQueryJobMetadataStorageService,
         sparkQueryDispatcher,
