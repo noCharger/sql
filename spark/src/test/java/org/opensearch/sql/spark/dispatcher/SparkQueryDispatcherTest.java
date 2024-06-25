@@ -33,7 +33,6 @@ import static org.opensearch.sql.spark.data.constants.SparkConstants.FLINT_INDEX
 import static org.opensearch.sql.spark.data.constants.SparkConstants.STATUS_FIELD;
 import static org.opensearch.sql.spark.dispatcher.SparkQueryDispatcher.CLUSTER_NAME_TAG_KEY;
 import static org.opensearch.sql.spark.dispatcher.SparkQueryDispatcher.DATASOURCE_TAG_KEY;
-import static org.opensearch.sql.spark.dispatcher.SparkQueryDispatcher.INDEX_TAG_KEY;
 import static org.opensearch.sql.spark.dispatcher.SparkQueryDispatcher.JOB_TYPE_TAG_KEY;
 
 import com.amazonaws.services.emrserverless.model.CancelJobRunResult;
@@ -328,30 +327,31 @@ public class SparkQueryDispatcherTest {
   void testDispatchIndexQuery() {
     HashMap<String, String> tags = new HashMap<>();
     tags.put(DATASOURCE_TAG_KEY, "my_glue");
-    tags.put(INDEX_TAG_KEY, "flint_my_glue_default_http_logs_elb_and_requesturi_index");
     tags.put(CLUSTER_NAME_TAG_KEY, TEST_CLUSTER_NAME);
-    tags.put(JOB_TYPE_TAG_KEY, JobType.STREAMING.getText());
+    tags.put(JOB_TYPE_TAG_KEY, JobType.BATCH.getText());
     String query =
         "CREATE INDEX elb_and_requestUri ON my_glue.default.http_logs(l_orderkey, l_quantity) WITH"
             + " (auto_refresh = true)";
+    String actual =
+        "CREATE INDEX elb_and_requestUri ON my_glue.default.http_logs(l_orderkey, l_quantity) WITH"
+            + " (auto_refresh = false)";
     String sparkSubmitParameters =
-        withStructuredStreaming(
-            constructExpectedSparkSubmitParameterString(
-                "sigv4",
-                new HashMap<>() {
-                  {
-                    put(FLINT_INDEX_STORE_AWSREGION_KEY, "eu-west-1");
-                  }
-                },
-                query));
+        constructExpectedSparkSubmitParameterString(
+            "sigv4",
+            new HashMap<>() {
+              {
+                put(FLINT_INDEX_STORE_AWSREGION_KEY, "eu-west-1");
+              }
+            },
+            actual);
     StartJobRequest expected =
         new StartJobRequest(
-            "TEST_CLUSTER:streaming:flint_my_glue_default_http_logs_elb_and_requesturi_index",
+            "TEST_CLUSTER:batch",
             EMRS_APPLICATION_ID,
             EMRS_EXECUTION_ROLE,
             sparkSubmitParameters,
             tags,
-            true,
+            false,
             "query_execution_result_my_glue");
 
     when(emrServerlessClient.startJobRun(expected)).thenReturn(EMR_JOB_ID);
@@ -467,30 +467,31 @@ public class SparkQueryDispatcherTest {
   void testDispatchIndexQueryWithoutADatasourceName() {
     HashMap<String, String> tags = new HashMap<>();
     tags.put(DATASOURCE_TAG_KEY, "my_glue");
-    tags.put(INDEX_TAG_KEY, "flint_my_glue_default_http_logs_elb_and_requesturi_index");
     tags.put(CLUSTER_NAME_TAG_KEY, TEST_CLUSTER_NAME);
-    tags.put(JOB_TYPE_TAG_KEY, JobType.STREAMING.getText());
+    tags.put(JOB_TYPE_TAG_KEY, JobType.BATCH.getText());
     String query =
         "CREATE INDEX elb_and_requestUri ON default.http_logs(l_orderkey, l_quantity) WITH"
             + " (auto_refresh = true)";
+    String actual =
+        "CREATE INDEX elb_and_requestUri ON default.http_logs(l_orderkey, l_quantity) WITH"
+            + " (auto_refresh = false)";
     String sparkSubmitParameters =
-        withStructuredStreaming(
-            constructExpectedSparkSubmitParameterString(
-                "sigv4",
-                new HashMap<>() {
-                  {
-                    put(FLINT_INDEX_STORE_AWSREGION_KEY, "eu-west-1");
-                  }
-                },
-                query));
+        constructExpectedSparkSubmitParameterString(
+            "sigv4",
+            new HashMap<>() {
+              {
+                put(FLINT_INDEX_STORE_AWSREGION_KEY, "eu-west-1");
+              }
+            },
+            actual);
     StartJobRequest expected =
         new StartJobRequest(
-            "TEST_CLUSTER:streaming:flint_my_glue_default_http_logs_elb_and_requesturi_index",
+            "TEST_CLUSTER:batch",
             EMRS_APPLICATION_ID,
             EMRS_EXECUTION_ROLE,
             sparkSubmitParameters,
             tags,
-            true,
+            false,
             "query_execution_result_my_glue");
     when(emrServerlessClient.startJobRun(expected)).thenReturn(EMR_JOB_ID);
     DataSourceMetadata dataSourceMetadata = constructMyGlueDataSourceMetadata();
@@ -516,30 +517,31 @@ public class SparkQueryDispatcherTest {
   void testDispatchMaterializedViewQuery() {
     HashMap<String, String> tags = new HashMap<>();
     tags.put(DATASOURCE_TAG_KEY, "my_glue");
-    tags.put(INDEX_TAG_KEY, "flint_mv_1");
     tags.put(CLUSTER_NAME_TAG_KEY, TEST_CLUSTER_NAME);
-    tags.put(JOB_TYPE_TAG_KEY, JobType.STREAMING.getText());
+    tags.put(JOB_TYPE_TAG_KEY, JobType.BATCH.getText());
     String query =
         "CREATE MATERIALIZED VIEW mv_1 AS query=select * from my_glue.default.logs WITH"
             + " (auto_refresh = true)";
+    String actual =
+        "CREATE MATERIALIZED VIEW mv_1 AS query=select * from my_glue.default.logs WITH"
+            + " (auto_refresh = false)";
     String sparkSubmitParameters =
-        withStructuredStreaming(
-            constructExpectedSparkSubmitParameterString(
-                "sigv4",
-                new HashMap<>() {
-                  {
-                    put(FLINT_INDEX_STORE_AWSREGION_KEY, "eu-west-1");
-                  }
-                },
-                query));
+        constructExpectedSparkSubmitParameterString(
+            "sigv4",
+            new HashMap<>() {
+              {
+                put(FLINT_INDEX_STORE_AWSREGION_KEY, "eu-west-1");
+              }
+            },
+            actual);
     StartJobRequest expected =
         new StartJobRequest(
-            "TEST_CLUSTER:streaming:flint_mv_1",
+            "TEST_CLUSTER:batch",
             EMRS_APPLICATION_ID,
             EMRS_EXECUTION_ROLE,
             sparkSubmitParameters,
             tags,
-            true,
+            false,
             "query_execution_result_my_glue");
     when(emrServerlessClient.startJobRun(expected)).thenReturn(EMR_JOB_ID);
     DataSourceMetadata dataSourceMetadata = constructMyGlueDataSourceMetadata();

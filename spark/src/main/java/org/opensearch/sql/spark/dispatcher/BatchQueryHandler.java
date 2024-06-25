@@ -12,6 +12,8 @@ import static org.opensearch.sql.spark.dispatcher.SparkQueryDispatcher.JOB_TYPE_
 import com.amazonaws.services.emrserverless.model.GetJobRunResult;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 import org.opensearch.sql.datasource.model.DataSourceMetadata;
 import org.opensearch.sql.legacy.metrics.MetricName;
@@ -30,6 +32,8 @@ import org.opensearch.sql.spark.response.JobExecutionResponseReader;
 
 @RequiredArgsConstructor
 public class BatchQueryHandler extends AsyncQueryHandler {
+
+  private static final Logger LOG = LogManager.getLogger();
   private final EMRServerlessClient emrServerlessClient;
   private final JobExecutionResponseReader jobExecutionResponseReader;
   protected final LeaseManager leaseManager;

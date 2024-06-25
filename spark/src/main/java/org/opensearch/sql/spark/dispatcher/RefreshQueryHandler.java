@@ -60,6 +60,7 @@ public class RefreshQueryHandler extends BatchQueryHandler {
   @Override
   public DispatchQueryResponse submit(
       DispatchQueryRequest dispatchQueryRequest, DispatchQueryContext context) {
+
     DispatchQueryResponse resp = super.submit(dispatchQueryRequest, context);
     DataSourceMetadata dataSourceMetadata = context.getDataSourceMetadata();
     return new DispatchQueryResponse(
