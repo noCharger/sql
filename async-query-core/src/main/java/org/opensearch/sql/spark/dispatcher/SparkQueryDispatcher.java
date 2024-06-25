@@ -9,6 +9,14 @@ import static org.opensearch.sql.spark.dispatcher.model.FlintIndexOptions.AUTO_R
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import lombok.AllArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONObject;
@@ -29,7 +37,9 @@ import org.opensearch.sql.spark.utils.SQLQueryUtils;
 /** This class takes care of understanding query and dispatching job query to emr serverless. */
 @AllArgsConstructor
 public class SparkQueryDispatcher {
+  private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(5);
 
+  private static final Logger LOG = LogManager.getLogger();
   public static final String INDEX_TAG_KEY = "index";
   public static final String DATASOURCE_TAG_KEY = "datasource";
   public static final String CLUSTER_NAME_TAG_KEY = "domain_ident";
@@ -75,6 +85,54 @@ public class SparkQueryDispatcher {
         .queryId(queryIdProvider.getQueryId(dispatchQueryRequest));
   }
 
+
+  private void registerRefreshJob(IndexQueryDetails indexQueryDetails) {
+    long initialDelay = 0;
+    String periodString = indexQueryDetails.getFlintIndexOptions().getOption("refresh_interval").get();
+    long period = parsePeriodString(periodString);
+
+    Runnable refreshJob = () -> {
+      try {
+        // Logic for refreshing the index
+        LOG.info("Executing scheduled refresh job for " + indexQueryDetails.getIndexName() + " at " + System.currentTimeMillis());
+      } catch (Exception e) {
+        LOG.error("Error executing refresh job: " + e.getMessage());
+      }
+    };
+
+    scheduler.scheduleAtFixedRate(refreshJob, initialDelay, period, TimeUnit.MINUTES);
+  }
+
+  private long parsePeriodString(String periodString) {
+    if (periodString == null || periodString.isEmpty()) {
+      throw new IllegalArgumentException("Invalid refresh interval");
+    }
+    String[] parts = periodString.split(" ");
+    if (parts.length != 2) {
+      throw new IllegalArgumentException("Invalid refresh interval format");
+    }
+    long value;
+    try {
+      value = Long.parseLong(parts[0]);
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException("Invalid refresh interval value");
+    }
+    String unit = parts[1].toLowerCase();
+    switch (unit) {
+      case "minute":
+      case "minutes":
+        return value;
+      case "second":
+      case "seconds":
+        return TimeUnit.SECONDS.toMinutes(value);
+      case "hour":
+      case "hours":
+        return TimeUnit.HOURS.toMinutes(value);
+      default:
+        throw new IllegalArgumentException("Invalid refresh interval unit");
+    }
+  }
+
   private AsyncQueryHandler getQueryHandlerForFlintExtensionQuery(
       IndexQueryDetails indexQueryDetails) {
     if (isEligibleForIndexDMLHandling(indexQueryDetails)) {
@@ -89,7 +147,8 @@ public class SparkQueryDispatcher {
         // Step 1: Set auto_refresh to false
         indexQueryDetails.getFlintIndexOptions().setOption(AUTO_REFRESH, "false");
         // Step 2: Register refresh job as query scheduler
-        // TODO: Register refresh job as query scheduler
+        LOG.info("Register refresh job as query scheduler");
+        registerRefreshJob(indexQueryDetails);
       }
     }
 
