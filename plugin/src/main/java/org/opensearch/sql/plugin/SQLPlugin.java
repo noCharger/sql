@@ -39,6 +39,10 @@ import org.opensearch.core.common.io.stream.NamedWriteableRegistry;
 import org.opensearch.core.xcontent.NamedXContentRegistry;
 import org.opensearch.env.Environment;
 import org.opensearch.env.NodeEnvironment;
+import org.opensearch.indices.SystemIndexDescriptor;
+import org.opensearch.jobscheduler.spi.JobSchedulerExtension;
+import org.opensearch.jobscheduler.spi.ScheduledJobParser;
+import org.opensearch.jobscheduler.spi.ScheduledJobRunner;
 import org.opensearch.plugins.ActionPlugin;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.plugins.ScriptPlugin;
@@ -83,6 +87,8 @@ import org.opensearch.sql.spark.cluster.ClusterManagerEventListener;
 import org.opensearch.sql.spark.flint.FlintIndexMetadataServiceImpl;
 import org.opensearch.sql.spark.flint.operation.FlintIndexOpFactory;
 import org.opensearch.sql.spark.rest.RestAsyncQueryManagementAction;
+import org.opensearch.sql.spark.scheduler.OpenSearchAsyncQueryScheduler;
+import org.opensearch.sql.spark.scheduler.SampleExtensionRestHandler;
 import org.opensearch.sql.spark.storage.SparkStorageFactory;
 import org.opensearch.sql.spark.transport.TransportCancelAsyncQueryRequestAction;
 import org.opensearch.sql.spark.transport.TransportCreateAsyncQueryRequestAction;
@@ -97,7 +103,7 @@ import org.opensearch.threadpool.FixedExecutorBuilder;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.watcher.ResourceWatcherService;
 
-public class SQLPlugin extends Plugin implements ActionPlugin, ScriptPlugin {
+public class SQLPlugin extends Plugin implements ActionPlugin, ScriptPlugin, JobSchedulerExtension {
 
   private static final Logger LOGGER = LogManager.getLogger(SQLPlugin.class);
 
@@ -108,6 +114,7 @@ public class SQLPlugin extends Plugin implements ActionPlugin, ScriptPlugin {
 
   private NodeClient client;
   private DataSourceServiceImpl dataSourceService;
+  private OpenSearchAsyncQueryScheduler asyncQueryScheduler;
   private Injector injector;
 
   public String name() {
@@ -133,6 +140,7 @@ public class SQLPlugin extends Plugin implements ActionPlugin, ScriptPlugin {
     Metrics.getInstance().registerDefaultMetrics();
 
     return Arrays.asList(
+        new SampleExtensionRestHandler(),
         new RestPPLQueryAction(),
         new RestSqlAction(settings, injector),
         new RestSqlStatsAction(settings, restController),
@@ -200,6 +208,7 @@ public class SQLPlugin extends Plugin implements ActionPlugin, ScriptPlugin {
     this.client = (NodeClient) client;
     this.dataSourceService = createDataSourceService();
     dataSourceService.createDataSource(defaultOpenSearchDataSourceMetadata());
+    this.asyncQueryScheduler = createAsyncQueryScheduler(threadPool);
     LocalClusterState.state().setClusterService(clusterService);
     LocalClusterState.state().setPluginSettings((OpenSearchSettings) pluginSettings);
     LocalClusterState.state().setClient(client);
@@ -233,6 +242,30 @@ public class SQLPlugin extends Plugin implements ActionPlugin, ScriptPlugin {
         injector.getInstance(AsyncQueryExecutorService.class),
         clusterManagerEventListener,
         pluginSettings);
+  }
+
+  @Override
+  public String getJobType() {
+    LOGGER.info("Louis: getJobType");
+    return asyncQueryScheduler.SCHEDULER_PLUGIN_JOB_TYPE;
+  }
+
+  @Override
+  public String getJobIndex() {
+    LOGGER.info("Louis: getJobIndex");
+    return asyncQueryScheduler.SCHEDULER_INDEX_NAME;
+  }
+
+  @Override
+  public ScheduledJobRunner getJobRunner() {
+    LOGGER.info("Louis: getJobRunner");
+    return asyncQueryScheduler.getJobRunner();
+  }
+
+  @Override
+  public ScheduledJobParser getJobParser() {
+    LOGGER.info("Louis: getJobParser");
+    return asyncQueryScheduler.getJobParser();
   }
 
   @Override
@@ -288,5 +321,9 @@ public class SQLPlugin extends Plugin implements ActionPlugin, ScriptPlugin {
             .build(),
         dataSourceMetadataStorage,
         dataSourceUserAuthorizationHelper);
+  }
+  private OpenSearchAsyncQueryScheduler createAsyncQueryScheduler(ThreadPool threadPool) {
+    LOGGER.info("Louis: createAsyncQueryScheduler");
+    return new OpenSearchAsyncQueryScheduler(client, clusterService, threadPool);
   }
 }
