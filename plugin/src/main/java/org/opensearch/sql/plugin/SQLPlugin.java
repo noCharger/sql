@@ -10,7 +10,9 @@ import static org.opensearch.sql.datasource.model.DataSourceMetadata.defaultOpen
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import java.io.IOException;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -37,8 +39,14 @@ import org.opensearch.common.util.concurrent.OpenSearchExecutors;
 import org.opensearch.core.action.ActionResponse;
 import org.opensearch.core.common.io.stream.NamedWriteableRegistry;
 import org.opensearch.core.xcontent.NamedXContentRegistry;
+import org.opensearch.core.xcontent.XContentParser;
+import org.opensearch.core.xcontent.XContentParserUtils;
 import org.opensearch.env.Environment;
 import org.opensearch.env.NodeEnvironment;
+import org.opensearch.jobscheduler.spi.JobSchedulerExtension;
+import org.opensearch.jobscheduler.spi.ScheduledJobParser;
+import org.opensearch.jobscheduler.spi.ScheduledJobRunner;
+import org.opensearch.jobscheduler.spi.schedule.ScheduleParser;
 import org.opensearch.plugins.ActionPlugin;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.plugins.ScriptPlugin;
@@ -98,7 +106,9 @@ import org.opensearch.threadpool.FixedExecutorBuilder;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.watcher.ResourceWatcherService;
 
-public class SQLPlugin extends Plugin implements ActionPlugin, ScriptPlugin {
+public class SQLPlugin extends Plugin implements ActionPlugin, ScriptPlugin, JobSchedulerExtension {
+
+  static final String JOB_INDEX_NAME = ".scheduler_sample_extension";
 
   private static final Logger LOGGER = LogManager.getLogger(SQLPlugin.class);
 
@@ -135,6 +145,7 @@ public class SQLPlugin extends Plugin implements ActionPlugin, ScriptPlugin {
     Metrics.getInstance().registerDefaultMetrics();
 
     return Arrays.asList(
+        new SampleExtensionRestHandler(),
         new RestPPLQueryAction(),
         new RestSqlAction(settings, injector),
         new RestSqlStatsAction(settings, restController),
@@ -197,6 +208,11 @@ public class SQLPlugin extends Plugin implements ActionPlugin, ScriptPlugin {
       NamedWriteableRegistry namedWriteableRegistry,
       IndexNameExpressionResolver indexNameResolver,
       Supplier<RepositoriesService> repositoriesServiceSupplier) {
+    SampleJobRunner jobRunner = SampleJobRunner.getJobRunnerInstance();
+    jobRunner.setClusterService(clusterService);
+    jobRunner.setThreadPool(threadPool);
+    jobRunner.setClient(client);
+
     this.clusterService = clusterService;
     this.pluginSettings = new OpenSearchSettings(clusterService.getClusterSettings());
     this.client = (NodeClient) client;
@@ -235,6 +251,75 @@ public class SQLPlugin extends Plugin implements ActionPlugin, ScriptPlugin {
         injector.getInstance(AsyncQueryExecutorService.class),
         clusterManagerEventListener,
         pluginSettings);
+  }
+
+  @Override
+  public String getJobType() {
+    return "scheduler_sample_extension";
+  }
+
+  @Override
+  public String getJobIndex() {
+    return JOB_INDEX_NAME;
+  }
+
+  @Override
+  public ScheduledJobRunner getJobRunner() {
+    return SampleJobRunner.getJobRunnerInstance();
+  }
+
+  @Override
+  public ScheduledJobParser getJobParser() {
+    return (parser, id, jobDocVersion) -> {
+      SampleJobParameter jobParameter = new SampleJobParameter();
+      XContentParserUtils.ensureExpectedToken(
+          XContentParser.Token.START_OBJECT, parser.nextToken(), parser);
+
+      while (!parser.nextToken().equals(XContentParser.Token.END_OBJECT)) {
+        String fieldName = parser.currentName();
+        parser.nextToken();
+        switch (fieldName) {
+          case SampleJobParameter.NAME_FIELD:
+            jobParameter.setJobName(parser.text());
+            break;
+          case SampleJobParameter.ENABLED_FILED:
+            jobParameter.setEnabled(parser.booleanValue());
+            break;
+          case SampleJobParameter.ENABLED_TIME_FILED:
+            jobParameter.setEnabledTime(parseInstantValue(parser));
+            break;
+          case SampleJobParameter.LAST_UPDATE_TIME_FIELD:
+            jobParameter.setLastUpdateTime(parseInstantValue(parser));
+            break;
+          case SampleJobParameter.SCHEDULE_FIELD:
+            jobParameter.setSchedule(ScheduleParser.parse(parser));
+            break;
+          case SampleJobParameter.INDEX_NAME_FIELD:
+            jobParameter.setIndexToWatch(parser.text());
+            break;
+          case SampleJobParameter.LOCK_DURATION_SECONDS:
+            jobParameter.setLockDurationSeconds(parser.longValue());
+            break;
+          case SampleJobParameter.JITTER:
+            jobParameter.setJitter(parser.doubleValue());
+            break;
+          default:
+            XContentParserUtils.throwUnknownToken(parser.currentToken(), parser.getTokenLocation());
+        }
+      }
+      return jobParameter;
+    };
+  }
+
+  private Instant parseInstantValue(XContentParser parser) throws IOException {
+    if (XContentParser.Token.VALUE_NULL.equals(parser.currentToken())) {
+      return null;
+    }
+    if (parser.currentToken().isValue()) {
+      return Instant.ofEpochMilli(parser.longValue());
+    }
+    XContentParserUtils.throwUnknownToken(parser.currentToken(), parser.getTokenLocation());
+    return null;
   }
 
   @Override
