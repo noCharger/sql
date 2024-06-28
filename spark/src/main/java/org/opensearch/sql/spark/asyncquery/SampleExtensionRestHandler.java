@@ -6,7 +6,9 @@
  * this file be licensed under the Apache-2.0 license or a
  * compatible open source license.
  */
-package org.opensearch.sql.plugin;
+package org.opensearch.sql.spark.asyncquery;
+
+import static org.opensearch.sql.spark.asyncquery.OpenSearchAsyncQuerySchedulingServiceImpl.JOB_INDEX_NAME;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -28,8 +30,6 @@ import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.RestResponse;
-
-import static org.opensearch.sql.plugin.SQLPlugin.JOB_INDEX_NAME;
 
 /**
  * A sample rest handler that supports schedule and deschedule job operation
@@ -122,8 +122,7 @@ public class SampleExtensionRestHandler extends BaseRestHandler {
     } else if (request.method().equals(RestRequest.Method.DELETE)) {
       // delete job parameter doc from index
       String id = request.param("id");
-      DeleteRequest deleteRequest =
-          new DeleteRequest().index(JOB_INDEX_NAME).id(id);
+      DeleteRequest deleteRequest = new DeleteRequest().index(JOB_INDEX_NAME).id(id);
 
       return restChannel -> {
         client.delete(
