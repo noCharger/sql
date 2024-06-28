@@ -40,6 +40,8 @@ configurations {
 generateGrammarSource.dependsOn downloadG4Files
 
 dependencies {
+    compileOnly "org.opensearch:opensearch-job-scheduler-spi:${opensearch_build}"
+
     antlr "org.antlr:antlr4:4.7.1"
 
     api project(':core')

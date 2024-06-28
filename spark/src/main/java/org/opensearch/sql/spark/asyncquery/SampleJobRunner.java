@@ -6,7 +6,7 @@
  * this file be licensed under the Apache-2.0 license or a
  * compatible open source license.
  */
-package org.opensearch.sql.plugin;
+package org.opensearch.sql.spark.asyncquery;
 
 import java.util.List;
 import java.util.UUID;
@@ -111,27 +111,9 @@ public class SampleJobRunner implements ScheduledJobRunner {
                       }
 
                       SampleJobParameter parameter = (SampleJobParameter) jobParameter;
-                      StringBuilder msg = new StringBuilder();
-                      msg.append("Watching index ")
-                          .append(parameter.getIndexToWatch())
-                          .append("\n");
 
-                      List<ShardRouting> shardRoutingList =
-                          this.clusterService
-                              .state()
-                              .routingTable()
-                              .allShards(parameter.getIndexToWatch());
-                      for (ShardRouting shardRouting : shardRoutingList) {
-                        msg.append(shardRouting.shardId().getId())
-                            .append("\t")
-                            .append(shardRouting.currentNodeId())
-                            .append("\t")
-                            .append(shardRouting.active() ? "active" : "inactive")
-                            .append("\n");
-                      }
-                      log.info(msg.toString());
-                      runTaskForIntegrationTests(parameter);
-                      runTaskForLockIntegrationTests(parameter);
+                      // 1. Construct refresh query from the job parameter
+                      // 2. Submit refresh query to EMR
 
                       lockService.release(
                           lock,

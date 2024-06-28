@@ -16,12 +16,10 @@ import org.opensearch.common.inject.Singleton;
 import org.opensearch.sql.common.setting.Settings;
 import org.opensearch.sql.datasource.DataSourceService;
 import org.opensearch.sql.datasources.auth.DataSourceUserAuthorizationHelperImpl;
+import org.opensearch.sql.legacy.esdomain.LocalClusterState;
 import org.opensearch.sql.legacy.metrics.GaugeMetric;
 import org.opensearch.sql.legacy.metrics.Metrics;
-import org.opensearch.sql.spark.asyncquery.AsyncQueryExecutorService;
-import org.opensearch.sql.spark.asyncquery.AsyncQueryExecutorServiceImpl;
-import org.opensearch.sql.spark.asyncquery.AsyncQueryJobMetadataStorageService;
-import org.opensearch.sql.spark.asyncquery.OpensearchAsyncQueryJobMetadataStorageService;
+import org.opensearch.sql.spark.asyncquery.*;
 import org.opensearch.sql.spark.client.EMRServerlessClientFactory;
 import org.opensearch.sql.spark.client.EMRServerlessClientFactoryImpl;
 import org.opensearch.sql.spark.config.SparkExecutionEngineConfigSupplier;
@@ -32,6 +30,7 @@ import org.opensearch.sql.spark.execution.statestore.StateStore;
 import org.opensearch.sql.spark.flint.FlintIndexMetadataServiceImpl;
 import org.opensearch.sql.spark.leasemanager.DefaultLeaseManager;
 import org.opensearch.sql.spark.response.JobExecutionResponseReader;
+import org.opensearch.threadpool.ThreadPool;
 
 @RequiredArgsConstructor
 public class AsyncExecutorServiceModule extends AbstractModule {
@@ -54,6 +53,12 @@ public class AsyncExecutorServiceModule extends AbstractModule {
   public AsyncQueryJobMetadataStorageService asyncQueryJobMetadataStorageService(
       StateStore stateStore) {
     return new OpensearchAsyncQueryJobMetadataStorageService(stateStore);
+  }
+
+  @Provides
+  @Singleton
+  public AsyncQuerySchedulingService asyncQuerySchedulingService(NodeClient client, ClusterService clusterService, ThreadPool threadPool) {
+    return new OpenSearchAsyncQuerySchedulingServiceImpl(client, clusterService, threadPool);
   }
 
   @Provides

@@ -6,7 +6,7 @@
  * this file be licensed under the Apache-2.0 license or a
  * compatible open source license.
  */
-package org.opensearch.sql.plugin;
+package org.opensearch.sql.spark.asyncquery;
 
 import java.io.IOException;
 import java.time.Instant;
