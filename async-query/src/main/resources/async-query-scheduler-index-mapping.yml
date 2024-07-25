@@ -8,9 +8,11 @@
 # Also "dynamic" is set to "false" so that other fields cannot be added.
 dynamic: false
 properties:
-  name:
+  jobId:
     type: keyword
   jobType:
+    type: keyword
+  dataSource:
     type: keyword
   lastUpdateTime:
     type: date

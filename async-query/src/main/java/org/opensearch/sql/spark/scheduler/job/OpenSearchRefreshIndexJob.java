@@ -13,6 +13,10 @@ import org.opensearch.jobscheduler.spi.JobExecutionContext;
 import org.opensearch.jobscheduler.spi.ScheduledJobParameter;
 import org.opensearch.jobscheduler.spi.ScheduledJobRunner;
 import org.opensearch.plugins.Plugin;
+import org.opensearch.sql.spark.asyncquery.AsyncQueryExecutorService;
+import org.opensearch.sql.spark.asyncquery.model.NullAsyncQueryRequestContext;
+import org.opensearch.sql.spark.rest.model.CreateAsyncQueryRequest;
+import org.opensearch.sql.spark.rest.model.LangType;
 import org.opensearch.sql.spark.scheduler.model.OpenSearchRefreshIndexJobRequest;
 import org.opensearch.threadpool.ThreadPool;
 
@@ -39,6 +43,7 @@ public class OpenSearchRefreshIndexJob implements ScheduledJobRunner {
     return INSTANCE;
   }
 
+  private AsyncQueryExecutorService asyncQueryExecutorService;
   private ClusterService clusterService;
   private ThreadPool threadPool;
   private Client client;
@@ -47,16 +52,15 @@ public class OpenSearchRefreshIndexJob implements ScheduledJobRunner {
     // Singleton class, use getJobRunnerInstance method instead of constructor
   }
 
-  public void setClusterService(ClusterService clusterService) {
-    this.clusterService = clusterService;
-  }
-
-  public void setThreadPool(ThreadPool threadPool) {
-    this.threadPool = threadPool;
-  }
-
-  public void setClient(Client client) {
+  public void loadJobResources(
+      Client client,
+      ClusterService clusterService,
+      ThreadPool threadPool,
+      AsyncQueryExecutorService asyncQueryExecutorService) {
     this.client = client;
+    this.clusterService = clusterService;
+    this.threadPool = threadPool;
+    this.asyncQueryExecutorService = asyncQueryExecutorService;
   }
 
   @Override
@@ -79,15 +83,23 @@ public class OpenSearchRefreshIndexJob implements ScheduledJobRunner {
       throw new IllegalStateException("Client is not initialized.");
     }
 
+    if (this.asyncQueryExecutorService == null) {
+      throw new IllegalStateException("AsyncQueryExecutorService is not initialized");
+    }
+
     Runnable runnable =
         () -> {
-          doRefresh(jobParameter.getName());
+          doRefresh((OpenSearchRefreshIndexJobRequest) jobParameter);
         };
     threadPool.generic().submit(runnable);
   }
 
-  void doRefresh(String refreshIndex) {
+  void doRefresh(OpenSearchRefreshIndexJobRequest jobParameter) {
     // TODO: add logic to refresh index
-    log.info("Scheduled refresh index job on : " + refreshIndex);
+    log.info("Scheduled refresh index job with jobId: " + jobParameter.getName());
+    String query = "REFRESH xxx";
+    CreateAsyncQueryRequest request =
+        new CreateAsyncQueryRequest(query, jobParameter.getDataSource(), LangType.SQL);
+    asyncQueryExecutorService.createAsyncQuery(request, new NullAsyncQueryRequestContext());
   }
 }

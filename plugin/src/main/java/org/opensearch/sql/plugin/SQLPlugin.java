@@ -124,7 +124,6 @@ public class SQLPlugin extends Plugin
 
   private NodeClient client;
   private DataSourceServiceImpl dataSourceService;
-  private OpenSearchAsyncQueryScheduler asyncQueryScheduler;
   private Injector injector;
 
   public String name() {
@@ -217,8 +216,6 @@ public class SQLPlugin extends Plugin
     this.client = (NodeClient) client;
     this.dataSourceService = createDataSourceService();
     dataSourceService.createDataSource(defaultOpenSearchDataSourceMetadata());
-    this.asyncQueryScheduler = new OpenSearchAsyncQueryScheduler();
-    this.asyncQueryScheduler.loadJobResource(client, clusterService, threadPool);
     LocalClusterState.state().setClusterService(clusterService);
     LocalClusterState.state().setPluginSettings((OpenSearchSettings) pluginSettings);
     LocalClusterState.state().setClient(client);
@@ -233,6 +230,14 @@ public class SQLPlugin extends Plugin
         });
     modules.add(new AsyncExecutorServiceModule());
     injector = modules.createInjector();
+
+    OpenSearchRefreshIndexJob.getJobRunnerInstance()
+        .loadJobResources(
+            client,
+            clusterService,
+            threadPool,
+            injector.getInstance(AsyncQueryExecutorService.class));
+
     ClusterManagerEventListener clusterManagerEventListener =
         new ClusterManagerEventListener(
             clusterService,

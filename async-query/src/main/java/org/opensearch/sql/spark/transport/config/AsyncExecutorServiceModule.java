@@ -61,6 +61,8 @@ import org.opensearch.sql.spark.parameter.SparkParameterComposerCollection;
 import org.opensearch.sql.spark.parameter.SparkSubmitParametersBuilderProvider;
 import org.opensearch.sql.spark.response.JobExecutionResponseReader;
 import org.opensearch.sql.spark.response.OpenSearchJobExecutionResponseReader;
+import org.opensearch.sql.spark.scheduler.AsyncQueryScheduler;
+import org.opensearch.sql.spark.scheduler.OpenSearchAsyncQueryScheduler;
 
 @RequiredArgsConstructor
 public class AsyncExecutorServiceModule extends AbstractModule {
@@ -91,6 +93,12 @@ public class AsyncExecutorServiceModule extends AbstractModule {
     StateStore stateStore = new StateStore(client, clusterService);
     registerStateStoreMetrics(stateStore);
     return stateStore;
+  }
+
+  @Provides
+  @Singleton
+  public AsyncQueryScheduler asyncQueryScheduler(NodeClient client, ClusterService clusterService) {
+    return new OpenSearchAsyncQueryScheduler(client, clusterService);
   }
 
   @Provides

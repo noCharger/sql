@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -33,13 +34,11 @@ import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.common.xcontent.json.JsonXContent;
 import org.opensearch.index.engine.DocumentMissingException;
 import org.opensearch.index.engine.VersionConflictEngineException;
-import org.opensearch.jobscheduler.spi.ScheduledJobRunner;
-import org.opensearch.sql.spark.scheduler.job.OpenSearchRefreshIndexJob;
 import org.opensearch.sql.spark.scheduler.model.OpenSearchRefreshIndexJobRequest;
-import org.opensearch.threadpool.ThreadPool;
 
 /** Scheduler class for managing asynchronous query jobs. */
-public class OpenSearchAsyncQueryScheduler {
+@RequiredArgsConstructor
+public class OpenSearchAsyncQueryScheduler implements AsyncQueryScheduler {
   public static final String SCHEDULER_INDEX_NAME = ".async-query-scheduler";
   public static final String SCHEDULER_PLUGIN_JOB_TYPE = "async-query-scheduler";
   private static final String SCHEDULER_INDEX_MAPPING_FILE_NAME =
@@ -48,19 +47,8 @@ public class OpenSearchAsyncQueryScheduler {
       "async-query-scheduler-index-settings.yml";
   private static final Logger LOG = LogManager.getLogger();
 
-  private Client client;
-  private ClusterService clusterService;
-
-  /** Loads job resources, setting up required services and job runner instance. */
-  public void loadJobResource(Client client, ClusterService clusterService, ThreadPool threadPool) {
-    this.client = client;
-    this.clusterService = clusterService;
-    OpenSearchRefreshIndexJob openSearchRefreshIndexJob =
-        OpenSearchRefreshIndexJob.getJobRunnerInstance();
-    openSearchRefreshIndexJob.setClusterService(clusterService);
-    openSearchRefreshIndexJob.setThreadPool(threadPool);
-    openSearchRefreshIndexJob.setClient(client);
-  }
+  private final Client client;
+  private final ClusterService clusterService;
 
   /** Schedules a new job by indexing it into the job index. */
   public void scheduleJob(OpenSearchRefreshIndexJobRequest request) {
@@ -96,7 +84,7 @@ public class OpenSearchAsyncQueryScheduler {
     assertIndexExists();
     OpenSearchRefreshIndexJobRequest request =
         OpenSearchRefreshIndexJobRequest.builder()
-            .jobName(jobId)
+            .jobId(jobId)
             .enabled(false)
             .lastUpdateTime(Instant.now())
             .build();
@@ -188,10 +176,5 @@ public class OpenSearchAsyncQueryScheduler {
     if (!this.clusterService.state().routingTable().hasIndex(SCHEDULER_INDEX_NAME)) {
       throw new IllegalStateException("Job index does not exist.");
     }
-  }
-
-  /** Returns the job runner instance for the scheduler. */
-  public static ScheduledJobRunner getJobRunner() {
-    return OpenSearchRefreshIndexJob.getJobRunnerInstance();
   }
 }

@@ -26,7 +26,7 @@ public class OpenSearchRefreshIndexJobRequestTest {
 
     OpenSearchRefreshIndexJobRequest jobRequest =
         OpenSearchRefreshIndexJobRequest.builder()
-            .jobName("testJob")
+            .jobId("testJob")
             .jobType("testType")
             .schedule(schedule)
             .enabled(true)
@@ -53,7 +53,7 @@ public class OpenSearchRefreshIndexJobRequestTest {
 
     OpenSearchRefreshIndexJobRequest jobRequest =
         OpenSearchRefreshIndexJobRequest.builder()
-            .jobName("testJob")
+            .jobId("testJob")
             .jobType("testType")
             .schedule(schedule)
             .enabled(true)

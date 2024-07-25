@@ -6,7 +6,6 @@
 package org.opensearch.sql.spark.scheduler;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -18,14 +17,12 @@ import static org.opensearch.sql.spark.scheduler.OpenSearchAsyncQueryScheduler.S
 import java.io.IOException;
 import java.time.Instant;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Answers;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
 import org.opensearch.action.DocWriteResponse;
 import org.opensearch.action.admin.indices.create.CreateIndexRequest;
 import org.opensearch.action.admin.indices.create.CreateIndexResponse;
@@ -41,7 +38,6 @@ import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.action.ActionFuture;
 import org.opensearch.index.engine.DocumentMissingException;
 import org.opensearch.index.engine.VersionConflictEngineException;
-import org.opensearch.jobscheduler.spi.ScheduledJobRunner;
 import org.opensearch.sql.spark.scheduler.model.OpenSearchRefreshIndexJobRequest;
 import org.opensearch.threadpool.ThreadPool;
 
@@ -74,13 +70,6 @@ public class OpenSearchAsyncQuerySchedulerTest {
 
   private OpenSearchAsyncQueryScheduler scheduler;
 
-  @BeforeEach
-  public void setup() {
-    MockitoAnnotations.openMocks(this);
-    scheduler = new OpenSearchAsyncQueryScheduler();
-    scheduler.loadJobResource(client, clusterService, threadPool);
-  }
-
   @Test
   public void testScheduleJob() {
     when(clusterService.state().routingTable().hasIndex(SCHEDULER_INDEX_NAME))
@@ -97,7 +86,7 @@ public class OpenSearchAsyncQuerySchedulerTest {
 
     OpenSearchRefreshIndexJobRequest request =
         OpenSearchRefreshIndexJobRequest.builder()
-            .jobName(TEST_JOB_ID)
+            .jobId(TEST_JOB_ID)
             .lastUpdateTime(Instant.now())
             .build();
 
@@ -121,7 +110,7 @@ public class OpenSearchAsyncQuerySchedulerTest {
 
     OpenSearchRefreshIndexJobRequest request =
         OpenSearchRefreshIndexJobRequest.builder()
-            .jobName(TEST_JOB_ID)
+            .jobId(TEST_JOB_ID)
             .lastUpdateTime(Instant.now())
             .build();
 
@@ -150,7 +139,7 @@ public class OpenSearchAsyncQuerySchedulerTest {
 
     OpenSearchRefreshIndexJobRequest request =
         OpenSearchRefreshIndexJobRequest.builder()
-            .jobName(TEST_JOB_ID)
+            .jobId(TEST_JOB_ID)
             .lastUpdateTime(Instant.now())
             .build();
 
@@ -206,7 +195,7 @@ public class OpenSearchAsyncQuerySchedulerTest {
   public void testUpdateJob() throws IOException {
     OpenSearchRefreshIndexJobRequest request =
         OpenSearchRefreshIndexJobRequest.builder()
-            .jobName(TEST_JOB_ID)
+            .jobId(TEST_JOB_ID)
             .lastUpdateTime(Instant.now())
             .build();
 
@@ -231,7 +220,7 @@ public class OpenSearchAsyncQuerySchedulerTest {
   public void testUpdateJobWithIndexNotFound() {
     OpenSearchRefreshIndexJobRequest request =
         OpenSearchRefreshIndexJobRequest.builder()
-            .jobName(TEST_JOB_ID)
+            .jobId(TEST_JOB_ID)
             .lastUpdateTime(Instant.now())
             .build();
 
@@ -244,7 +233,7 @@ public class OpenSearchAsyncQuerySchedulerTest {
   public void testUpdateJobWithExceptions() {
     OpenSearchRefreshIndexJobRequest request =
         OpenSearchRefreshIndexJobRequest.builder()
-            .jobName(TEST_JOB_ID)
+            .jobId(TEST_JOB_ID)
             .lastUpdateTime(Instant.now())
             .build();
 
@@ -353,7 +342,7 @@ public class OpenSearchAsyncQuerySchedulerTest {
 
     OpenSearchRefreshIndexJobRequest request =
         OpenSearchRefreshIndexJobRequest.builder()
-            .jobName(TEST_JOB_ID)
+            .jobId(TEST_JOB_ID)
             .lastUpdateTime(Instant.now())
             .build();
 
@@ -369,7 +358,7 @@ public class OpenSearchAsyncQuerySchedulerTest {
   public void testUpdateJobNotFound() {
     OpenSearchRefreshIndexJobRequest request =
         OpenSearchRefreshIndexJobRequest.builder()
-            .jobName(TEST_JOB_ID)
+            .jobId(TEST_JOB_ID)
             .lastUpdateTime(Instant.now())
             .build();
 
@@ -424,11 +413,5 @@ public class OpenSearchAsyncQuerySchedulerTest {
     RuntimeException runtimeException =
         Assertions.assertThrows(RuntimeException.class, () -> scheduler.removeJob(TEST_JOB_ID));
     Assertions.assertEquals("Remove job failed with result : noop", runtimeException.getMessage());
-  }
-
-  @Test
-  public void testGetJobRunner() {
-    ScheduledJobRunner jobRunner = OpenSearchAsyncQueryScheduler.getJobRunner();
-    assertNotNull(jobRunner);
   }
 }

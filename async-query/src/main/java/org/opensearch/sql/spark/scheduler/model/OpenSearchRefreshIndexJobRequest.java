@@ -17,8 +17,9 @@ import org.opensearch.jobscheduler.spi.schedule.Schedule;
 @Builder
 public class OpenSearchRefreshIndexJobRequest implements ScheduledJobParameter {
   // Constant fields for JSON serialization
-  public static final String JOB_NAME_FIELD = "jobName";
+  public static final String JOB_ID_FIELD = "jobId";
   public static final String JOB_TYPE_FIELD = "jobType";
+  public static final String DATA_SOURCE_NAME_FIELD = "dataSource";
   public static final String LAST_UPDATE_TIME_FIELD = "lastUpdateTime";
   public static final String LAST_UPDATE_TIME_FIELD_READABLE = "last_update_time_field";
   public static final String SCHEDULE_FIELD = "schedule";
@@ -29,8 +30,9 @@ public class OpenSearchRefreshIndexJobRequest implements ScheduledJobParameter {
   public static final String ENABLED_FIELD = "enabled";
 
   // name is doc id
-  private final String jobName;
+  private final String jobId;
   private final String jobType;
+  private final String dataSource;
   private final Schedule schedule;
   private final boolean enabled;
   private final Instant lastUpdateTime;
@@ -40,11 +42,15 @@ public class OpenSearchRefreshIndexJobRequest implements ScheduledJobParameter {
 
   @Override
   public String getName() {
-    return jobName;
+    return jobId;
   }
 
   public String getJobType() {
     return jobType;
+  }
+
+  public String getDataSource() {
+    return dataSource;
   }
 
   @Override
@@ -81,7 +87,10 @@ public class OpenSearchRefreshIndexJobRequest implements ScheduledJobParameter {
   public XContentBuilder toXContent(XContentBuilder builder, ToXContent.Params params)
       throws IOException {
     builder.startObject();
-    builder.field(JOB_NAME_FIELD, getName()).field(ENABLED_FIELD, isEnabled());
+    builder.field(JOB_ID_FIELD, getName()).field(ENABLED_FIELD, isEnabled());
+    if (getDataSource() != null) {
+      builder.field(DATA_SOURCE_NAME_FIELD, getDataSource());
+    }
     if (getSchedule() != null) {
       builder.field(SCHEDULE_FIELD, getSchedule());
     }

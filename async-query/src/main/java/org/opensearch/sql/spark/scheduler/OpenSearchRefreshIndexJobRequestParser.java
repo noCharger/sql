@@ -37,8 +37,8 @@ public class OpenSearchRefreshIndexJobRequestParser {
         String fieldName = parser.currentName();
         parser.nextToken();
         switch (fieldName) {
-          case OpenSearchRefreshIndexJobRequest.JOB_NAME_FIELD:
-            builder.jobName(parser.text());
+          case OpenSearchRefreshIndexJobRequest.JOB_ID_FIELD:
+            builder.jobId(parser.text());
             break;
           case OpenSearchRefreshIndexJobRequest.JOB_TYPE_FIELD:
             builder.jobType(parser.text());
