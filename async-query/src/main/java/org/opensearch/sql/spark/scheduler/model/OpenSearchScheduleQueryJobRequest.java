@@ -8,54 +8,62 @@ package org.opensearch.sql.spark.scheduler.model;
 import java.io.IOException;
 import java.time.Instant;
 import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.opensearch.core.xcontent.ToXContent;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.jobscheduler.spi.ScheduledJobParameter;
 import org.opensearch.jobscheduler.spi.schedule.Schedule;
+import org.opensearch.sql.spark.rest.model.LangType;
 
 /** Represents a job request to refresh index. */
-@Builder
-public class OpenSearchRefreshIndexJobRequest implements ScheduledJobParameter {
+@Data
+@EqualsAndHashCode(callSuper = true)
+public class OpenSearchScheduleQueryJobRequest extends AsyncQuerySchedulerRequest implements ScheduledJobParameter {
   // Constant fields for JSON serialization
+  public static final String ACCOUNT_ID_FIELD = "accountId";
   public static final String JOB_ID_FIELD = "jobId";
-  public static final String JOB_TYPE_FIELD = "jobType";
   public static final String DATA_SOURCE_NAME_FIELD = "dataSource";
+  public static final String SCHEDULED_QUERY_FIELD = "scheduledQuery";
+  public static final String QUERY_LANG_FIELD = "queryLang";
   public static final String LAST_UPDATE_TIME_FIELD = "lastUpdateTime";
-  public static final String LAST_UPDATE_TIME_FIELD_READABLE = "last_update_time_field";
   public static final String SCHEDULE_FIELD = "schedule";
   public static final String ENABLED_TIME_FIELD = "enabledTime";
-  public static final String ENABLED_TIME_FIELD_READABLE = "enabled_time_field";
   public static final String LOCK_DURATION_SECONDS = "lockDurationSeconds";
   public static final String JITTER = "jitter";
   public static final String ENABLED_FIELD = "enabled";
-
-  // name is doc id
-  private final String jobId;
-  private final String jobType;
-  private final String dataSource;
   private final Schedule schedule;
-  private final boolean enabled;
-  private final Instant lastUpdateTime;
-  private final Instant enabledTime;
-  private final Long lockDurationSeconds;
-  private final Double jitter;
+
+  @Builder
+  public OpenSearchScheduleQueryJobRequest(
+          String accountId,
+          String jobId,
+          String dataSource,
+          String scheduledQuery,
+          LangType queryLang,
+          Schedule schedule,  // Use the OpenSearch Schedule type
+          boolean enabled,
+          Instant lastUpdateTime,
+          Instant enabledTime,
+          Long lockDurationSeconds,
+          Double jitter) {
+    super(
+            accountId,
+            jobId,
+            dataSource,
+            scheduledQuery,
+            queryLang,
+            enabled,
+            lastUpdateTime,
+            enabledTime,
+            lockDurationSeconds,
+            jitter);
+    this.schedule = schedule;
+  }
 
   @Override
   public String getName() {
-    return jobId;
-  }
-
-  public String getJobType() {
-    return jobType;
-  }
-
-  public String getDataSource() {
-    return dataSource;
-  }
-
-  @Override
-  public Schedule getSchedule() {
-    return schedule;
+    return getJobId();
   }
 
   @Override
@@ -74,6 +82,11 @@ public class OpenSearchRefreshIndexJobRequest implements ScheduledJobParameter {
   }
 
   @Override
+  public Schedule getSchedule() {
+    return schedule;
+  }
+
+  @Override
   public Long getLockDurationSeconds() {
     return lockDurationSeconds;
   }
@@ -85,26 +98,28 @@ public class OpenSearchRefreshIndexJobRequest implements ScheduledJobParameter {
 
   @Override
   public XContentBuilder toXContent(XContentBuilder builder, ToXContent.Params params)
-      throws IOException {
+          throws IOException {
     builder.startObject();
-    builder.field(JOB_ID_FIELD, getName()).field(ENABLED_FIELD, isEnabled());
+    builder
+            .field(ACCOUNT_ID_FIELD, getAccountId())
+            .field(JOB_ID_FIELD, getJobId())
+            .field(ENABLED_FIELD, isEnabled());
     if (getDataSource() != null) {
       builder.field(DATA_SOURCE_NAME_FIELD, getDataSource());
+    }
+    if (getScheduledQuery() != null) {
+      builder.field(SCHEDULED_QUERY_FIELD, getScheduledQuery());
+    }
+    if (getQueryLang() != null) {
+      builder.field(QUERY_LANG_FIELD, getQueryLang());
     }
     if (getSchedule() != null) {
       builder.field(SCHEDULE_FIELD, getSchedule());
     }
-    if (getJobType() != null) {
-      builder.field(JOB_TYPE_FIELD, getJobType());
-    }
     if (getEnabledTime() != null) {
-      builder.timeField(
-          ENABLED_TIME_FIELD, ENABLED_TIME_FIELD_READABLE, getEnabledTime().toEpochMilli());
+      builder.field(ENABLED_TIME_FIELD, getEnabledTime().toEpochMilli());
     }
-    builder.timeField(
-        LAST_UPDATE_TIME_FIELD,
-        LAST_UPDATE_TIME_FIELD_READABLE,
-        getLastUpdateTime().toEpochMilli());
+    builder.field(LAST_UPDATE_TIME_FIELD, getLastUpdateTime().toEpochMilli());
     if (this.lockDurationSeconds != null) {
       builder.field(LOCK_DURATION_SECONDS, this.lockDurationSeconds);
     }

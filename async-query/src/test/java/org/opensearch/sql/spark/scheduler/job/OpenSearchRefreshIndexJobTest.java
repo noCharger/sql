@@ -24,7 +24,7 @@ import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.jobscheduler.spi.JobExecutionContext;
 import org.opensearch.jobscheduler.spi.ScheduledJobParameter;
 import org.opensearch.sql.spark.asyncquery.AsyncQueryExecutorService;
-import org.opensearch.sql.spark.scheduler.model.OpenSearchRefreshIndexJobRequest;
+import org.opensearch.sql.spark.scheduler.model.OpenSearchScheduleQueryJobRequest;
 import org.opensearch.threadpool.ThreadPool;
 
 public class OpenSearchRefreshIndexJobTest {
@@ -59,8 +59,8 @@ public class OpenSearchRefreshIndexJobTest {
     spyJobRunner = spy(jobRunner);
     spyJobRunner.loadJobResources(client, clusterService, threadPool, asyncQueryExecutorService);
 
-    OpenSearchRefreshIndexJobRequest jobParameter =
-        OpenSearchRefreshIndexJobRequest.builder()
+    OpenSearchScheduleQueryJobRequest jobParameter =
+        OpenSearchScheduleQueryJobRequest.builder()
             .jobId("testJob")
             .lastUpdateTime(Instant.now())
             .lockDurationSeconds(10L)
