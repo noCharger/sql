@@ -154,6 +154,19 @@ public class OpenSearchSettings extends Settings {
           Setting.Property.NodeScope,
           Setting.Property.Dynamic);
 
+  public static final Setting<Boolean> ASYNC_QUERY_EXTERNAL_SCHEDULER_ENABLED_SETTING =
+      Setting.boolSetting(
+          Key.ASYNC_QUERY_EXTERNAL_SCHEDULER_ENABLED.getKeyValue(),
+          true,
+          Setting.Property.NodeScope,
+          Setting.Property.Dynamic);
+
+  public static final Setting<String> ASYNC_QUERY_EXTERNAL_SCHEDULER_INTERVAL_SETTING =
+      Setting.simpleString(
+          Key.ASYNC_QUERY_EXTERNAL_SCHEDULER_INTERVAL.getKeyValue(),
+          Setting.Property.NodeScope,
+          Setting.Property.Dynamic);
+
   public static final Setting<String> SPARK_EXECUTION_ENGINE_CONFIG =
       Setting.simpleString(
           Key.SPARK_EXECUTION_ENGINE_CONFIG.getKeyValue(),
@@ -298,6 +311,18 @@ public class OpenSearchSettings extends Settings {
         Key.ASYNC_QUERY_ENABLED,
         ASYNC_QUERY_ENABLED_SETTING,
         new Updater(Key.ASYNC_QUERY_ENABLED));
+    register(
+        settingBuilder,
+        clusterSettings,
+        Key.ASYNC_QUERY_EXTERNAL_SCHEDULER_ENABLED,
+        ASYNC_QUERY_EXTERNAL_SCHEDULER_ENABLED_SETTING,
+        new Updater(Key.ASYNC_QUERY_EXTERNAL_SCHEDULER_ENABLED));
+    register(
+        settingBuilder,
+        clusterSettings,
+        Key.ASYNC_QUERY_EXTERNAL_SCHEDULER_INTERVAL,
+        ASYNC_QUERY_EXTERNAL_SCHEDULER_INTERVAL_SETTING,
+        new Updater(Key.ASYNC_QUERY_EXTERNAL_SCHEDULER_INTERVAL));
     register(
         settingBuilder,
         clusterSettings,

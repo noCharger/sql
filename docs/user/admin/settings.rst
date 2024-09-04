@@ -639,6 +639,76 @@ Request::
         }
     }
 
+plugins.query.executionengine.async_query.external_scheduler.enabled
+=====================================================================
+
+Description
+-----------
+This setting controls whether the external scheduler is enabled for async queries.
+
+* Default Value: true
+* Scope: Node-level
+* Dynamic Update: Yes, this setting can be updated dynamically. 
+
+To disable the external scheduler, use the following command:
+
+Request ::
+
+    sh$ curl -sS -H 'Content-Type: application/json' -X PUT localhost:9200/_cluster/settings \
+    ... -d '{"transient":{"plugins.query.executionengine.async_query.external_scheduler.enabled":"false"}}'
+    {
+        "acknowledged": true,
+        "persistent": {},
+        "transient": {
+            "plugins": {
+                "query": {
+                    "executionengine": {
+                        "async_query": {
+                            "external_scheduler": {
+                                "enabled": "false"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+plugins.query.executionengine.async_query.external_scheduler.interval
+=====================================================================
+
+Description
+-----------
+This setting specifies the interval at which the external scheduler runs to check for pending async queries.
+
+* Default Value: None (must be explicitly set)
+* Format: A string representing a time duration follows Spark [CalendarInterval](https://spark.apache.org/docs/latest/api/java/org/apache/spark/unsafe/types/CalendarInterval.html)
+  format (e.g., "10m" for 10 minutes, "1h" for 1 hour)
+
+To modify the interval to 10 minutes for example, use this command:
+
+Request ::
+
+    sh$ curl -sS -H 'Content-Type: application/json' -X PUT localhost:9200/_cluster/settings \
+    ... -d '{"transient":{"plugins.query.executionengine.async_query.external_scheduler.interval":"10 minutes"}}'
+    {
+        "acknowledged": true,
+        "persistent": {},
+        "transient": {
+            "plugins": {
+                "query": {
+                    "executionengine": {
+                        "async_query": {
+                            "external_scheduler": {
+                                "interval": "10 minutes"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
 plugins.query.executionengine.spark.streamingjobs.housekeeper.interval
 ======================================================================
 
