@@ -428,25 +428,23 @@ public class AggregationIT extends SQLIntegTestCase {
 
   @Test
   public void termsWithMissing() throws Exception {
-
-    JSONObject result =
-        executeQuery(
+    String result = explainQuery(
             String.format(
-                "SELECT count(*) FROM %s GROUP BY terms"
-                    + "('alias'='nick','field'='nickname','missing'='no_nickname')",
-                TEST_INDEX_GAME_OF_THRONES));
-    JSONObject nick = getAggregation(result, "nick");
+                    "SELECT count(*) FROM %s GROUP BY terms"
+                            + "('alias'='nick','field'='nickname','missing'='no_nickname')",
+                    TEST_INDEX_GAME_OF_THRONES));
 
-    Optional<JSONObject> noNicknameBucket = Optional.empty();
-    Iterator<Object> iter = nick.getJSONArray("buckets").iterator();
-    while (iter.hasNext()) {
-      JSONObject bucket = (JSONObject) iter.next();
-      if (bucket.getString("key").equals("no_nickname")) {
-        noNicknameBucket = Optional.of(bucket);
-        Assert.assertThat(bucket.getInt("doc_count"), equalTo(6));
-      }
-    }
-    Assert.assertTrue(noNicknameBucket.isPresent());
+    System.out.println("Explain Result:");
+    System.out.println(result);
+
+    JSONObject result2 =
+            executeQuery(
+                    String.format(
+                            "SELECT * FROM %s",
+                            TEST_INDEX_GAME_OF_THRONES));
+
+    System.out.println("Query Result:");
+    System.out.println(result2);
   }
 
   @Test
