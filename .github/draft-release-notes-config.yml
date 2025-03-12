@@ -3,6 +3,12 @@ template: |
   Compatible with OpenSearch and OpenSearch Dashboards Version $RESOLVED_VERSION
   $CHANGES
 
+branches:
+  - name: 2.x
+    base: main  # Compare against main
+    compare: 2.x  # Current branch
+    exclude-labels: ["backport"]
+
 # Setting the formatting and sorting for the release notes body
 name-template: Version $RESOLVED_VERSION
 change-template: "* $TITLE ([#$NUMBER](https://github.com/opensearch-project/sql/pull/$NUMBER))"
