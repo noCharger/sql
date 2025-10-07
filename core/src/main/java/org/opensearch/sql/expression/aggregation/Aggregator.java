@@ -40,11 +40,13 @@ public abstract class Aggregator<S extends AggregationState>
   @Setter
   @Getter
   @Accessors(fluent = true)
+  @EqualsAndHashCode.Include
   protected Expression condition;
 
   @Setter
   @Getter
   @Accessors(fluent = true)
+  @EqualsAndHashCode.Include
   protected Boolean distinct = false;
 
   /** Create an {@link AggregationState} which will be used for aggregation. */
