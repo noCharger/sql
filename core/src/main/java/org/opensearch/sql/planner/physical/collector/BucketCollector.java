@@ -71,6 +71,7 @@ public class BucketCollector implements Collector {
    */
   @Override
   public List<ExprValue> results() {
+    bucketIndex = 0;
     ExprValue[] buckets = allocateBuckets();
     for (Map.Entry<ExprValue, Collector> entry : collectorMap.entrySet()) {
       ImmutableList.Builder<ExprValue> builder = new ImmutableList.Builder<>();
