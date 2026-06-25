@@ -63,6 +63,7 @@ import org.opensearch.sql.expression.function.jsonUDF.JsonExtractFunctionImpl;
 import org.opensearch.sql.expression.function.jsonUDF.JsonFunctionImpl;
 import org.opensearch.sql.expression.function.jsonUDF.JsonKeysFunctionImpl;
 import org.opensearch.sql.expression.function.jsonUDF.JsonSetFunctionImpl;
+import org.opensearch.sql.expression.function.jsonUDF.MapFilterKeysFunctionImpl;
 import org.opensearch.sql.expression.function.udf.AutoConvertFunction;
 import org.opensearch.sql.expression.function.udf.CTimeConvertFunction;
 import org.opensearch.sql.expression.function.udf.CryptographicFunction;
@@ -131,6 +132,8 @@ public class PPLBuiltinOperators extends ReflectiveSqlOperatorTable {
       new JsonExtractFunctionImpl().toUDF("JSON_EXTRACT");
   public static final SqlOperator JSON_EXTRACT_ALL =
       new JsonExtractAllFunctionImpl().toUDF("JSON_EXTRACT_ALL");
+  public static final SqlOperator MAP_FILTER_KEYS =
+      new MapFilterKeysFunctionImpl().toUDF("MAP_FILTER_KEYS");
   public static final SqlOperator JSON_KEYS = new JsonKeysFunctionImpl().toUDF("JSON_KEYS");
   public static final SqlOperator JSON_SET = new JsonSetFunctionImpl().toUDF("JSON_SET");
   public static final SqlOperator JSON_DELETE = new JsonDeleteFunctionImpl().toUDF("JSON_DELETE");

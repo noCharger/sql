@@ -39,6 +39,7 @@ import org.opensearch.search.fetch.subphase.FetchSourceContext;
 import org.opensearch.search.fetch.subphase.highlight.HighlightBuilder;
 import org.opensearch.search.sort.SortBuilder;
 import org.opensearch.sql.ast.expression.Literal;
+import org.opensearch.sql.calcite.plan.DynamicFieldsConstants;
 import org.opensearch.sql.common.setting.Settings;
 import org.opensearch.sql.common.utils.StringUtils;
 import org.opensearch.sql.exception.SemanticCheckException;
@@ -71,6 +72,14 @@ public class OpenSearchRequestBuilder {
   @EqualsAndHashCode.Exclude @ToString.Exclude private final int maxResultWindow;
 
   private int startFrom = 0;
+
+  /**
+   * Schema-on-read (RFC #4984): the unmapped field names carried by the {@code _MAP} column. Used
+   * to fetch only these from {@code _source} instead of the whole document. Empty when
+   * schema-on-read is not in play.
+   */
+  @lombok.Setter @EqualsAndHashCode.Exclude @ToString.Exclude
+  private Set<String> dynamicFieldsSourceIncludes = Set.of();
 
   @EqualsAndHashCode.Exclude @ToString.Exclude private final Settings settings;
 
@@ -332,7 +341,28 @@ public class OpenSearchRequestBuilder {
   }
 
   public void pushDownProjectStream(Stream<String> projects) {
-    sourceBuilder.fetchSource(projects.distinct().toArray(String[]::new), new String[0]);
+    List<String> projectList = projects.distinct().collect(toList());
+    if (projectList.contains(DynamicFieldsConstants.DYNAMIC_FIELDS_MAP)) {
+      // Schema-on-read (RFC #4984): the _MAP catch-all is materialized from unmapped fields that
+      // are
+      // not in the projected name list, so restricting _source to the projected names alone would
+      // drop them. RFC Step 5 optimization: fetch only the referenced unmapped fields (plus the
+      // other projected mapped names) rather than the whole _source. If the referenced set is
+      // unavailable (e.g. not threaded through a clone), fall back to fetching the full _source so
+      // correctness is never at risk — only the optimization is lost.
+      if (dynamicFieldsSourceIncludes.isEmpty()) {
+        sourceBuilder.fetchSource(true);
+      } else {
+        Set<String> includes = new java.util.LinkedHashSet<>();
+        projectList.stream()
+            .filter(name -> !DynamicFieldsConstants.DYNAMIC_FIELDS_MAP.equals(name))
+            .forEach(includes::add);
+        includes.addAll(dynamicFieldsSourceIncludes);
+        sourceBuilder.fetchSource(includes.toArray(new String[0]), new String[0]);
+      }
+    } else {
+      sourceBuilder.fetchSource(projectList.toArray(String[]::new), new String[0]);
+    }
   }
 
   public void pushTypeMapping(Map<String, OpenSearchDataType> typeMapping) {

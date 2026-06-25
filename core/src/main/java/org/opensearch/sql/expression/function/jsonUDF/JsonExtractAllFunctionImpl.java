@@ -13,11 +13,12 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Stack;
+import java.util.TreeMap;
 import org.apache.calcite.adapter.enumerable.NotNullImplementor;
 import org.apache.calcite.adapter.enumerable.NullPolicy;
 import org.apache.calcite.adapter.enumerable.RexImpTable;
@@ -95,15 +96,18 @@ public class JsonExtractAllFunctionImpl extends ImplementorUDF {
   // TODO: JSON parsing dominates cost; consider stringify scalars in place during parsing
   //  to avoid this extra pass.
   private static Map<String, String> stringifyMap(Map<String, Object> map) {
+    // TreeMap input preserves insertion (lexicographic) order; use LinkedHashMap to retain it.
     return map.entrySet().stream()
         .collect(
             toMap(
                 Map.Entry::getKey,
-                e -> String.valueOf(e.getValue()))); // relies on List.toString() for [a, b, c]
+                e -> String.valueOf(e.getValue()),
+                (a, b) -> b,
+                LinkedHashMap::new));
   }
 
   private static Map<String, Object> parseJson(String jsonStr) {
-    Map<String, Object> resultMap = new HashMap<>();
+    Map<String, Object> resultMap = new TreeMap<>();
     Stack<String> pathStack = new Stack<>();
 
     try (JsonParser parser = JSON_FACTORY.createParser(jsonStr)) {

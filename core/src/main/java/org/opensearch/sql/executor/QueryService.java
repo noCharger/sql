@@ -33,6 +33,7 @@ import org.opensearch.sql.calcite.CalcitePlanContext;
 import org.opensearch.sql.calcite.CalciteRelNodeVisitor;
 import org.opensearch.sql.calcite.OpenSearchSchema;
 import org.opensearch.sql.calcite.SysLimit;
+import org.opensearch.sql.calcite.plan.DynamicFieldSourceCollector;
 import org.opensearch.sql.calcite.plan.rel.LogicalSystemLimit;
 import org.opensearch.sql.calcite.plan.rel.LogicalSystemLimit.SystemLimitType;
 import org.opensearch.sql.calcite.utils.CalciteClassLoaderHelper;
@@ -309,7 +310,22 @@ public class QueryService {
   }
 
   public RelNode analyze(UnresolvedPlan plan, CalcitePlanContext context) {
-    return getRelNodeVisitor().analyze(plan, context);
+    // Schema-on-read (RFC #4984): when enabled, flag the context so the index scan appends the
+    // _MAP catch-all column. No AST pre-pass is needed; the name resolver self-gates on _MAP, so
+    // unmapped references resolve command-agnostically. Off by default.
+    if (settings != null
+        && Boolean.TRUE.equals(
+            settings.getSettingValue(Settings.Key.CALCITE_SCHEMA_ON_READ_ENABLED))) {
+      context.enableSchemaOnRead();
+    }
+    RelNode relNode = getRelNodeVisitor().analyze(plan, context);
+    // RFC #4984 Step 5 (command-agnostic): once the logical plan is built, every dynamic-field
+    // reference is a uniform ITEM(_MAP, ...) / MAP_FILTER_KEYS(_MAP, ...) node. Collect them here
+    // and restrict each scan's _source fetch to those names, with no per-command code.
+    if (context.isSchemaOnReadEnabled()) {
+      DynamicFieldSourceCollector.apply(relNode);
+    }
+    return relNode;
   }
 
   /** Analyze {@link UnresolvedPlan}. */

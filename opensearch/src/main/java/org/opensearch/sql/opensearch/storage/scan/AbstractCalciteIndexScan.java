@@ -23,6 +23,7 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelFieldCollation;
@@ -53,6 +54,7 @@ import org.opensearch.search.sort.SortBuilders;
 import org.opensearch.search.sort.SortOrder;
 import org.opensearch.sql.ast.tree.HighlightConfig;
 import org.opensearch.sql.calcite.plan.AliasFieldsWrappable;
+import org.opensearch.sql.calcite.plan.DynamicFieldsConstants;
 import org.opensearch.sql.common.setting.Settings.Key;
 import org.opensearch.sql.data.type.ExprType;
 import org.opensearch.sql.opensearch.data.type.OpenSearchTextType;
@@ -406,6 +408,20 @@ public abstract class AbstractCalciteIndexScan extends TableScan implements Alia
     try {
       if (sortExprDigests == null || sortExprDigests.isEmpty()) {
         return null;
+      }
+
+      // Schema-on-read (RFC #4984): a sort expression over the synthetic _MAP column cannot be
+      // pushed as an OpenSearch script sort (the column does not exist in the index). Returning
+      // null keeps the sort above the scan so Calcite evaluates it on the materialized _MAP.
+      int mapIndex =
+          getRowType().getFieldNames().indexOf(DynamicFieldsConstants.DYNAMIC_FIELDS_MAP);
+      if (mapIndex >= 0) {
+        for (SortExprDigest digest : sortExprDigests) {
+          RexNode expr = digest.getExpression();
+          if (expr != null && RelOptUtil.InputFinder.bits(expr).get(mapIndex)) {
+            return null;
+          }
+        }
       }
 
       AbstractCalciteIndexScan newScan =

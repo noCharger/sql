@@ -133,6 +133,7 @@ import static org.opensearch.sql.expression.function.BuiltinFunctionName.MAKEDAT
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.MAKETIME;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.MAP_APPEND;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.MAP_CONCAT;
+import static org.opensearch.sql.expression.function.BuiltinFunctionName.MAP_FILTER_KEYS;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.MAP_REMOVE;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.MATCH;
 import static org.opensearch.sql.expression.function.BuiltinFunctionName.MATCHPHRASE;
@@ -1115,6 +1116,7 @@ public class PPLFuncImpTable {
       registerOperator(JSON_APPEND, PPLBuiltinOperators.JSON_APPEND);
       registerOperator(JSON_EXTEND, PPLBuiltinOperators.JSON_EXTEND);
       registerOperator(JSON_EXTRACT_ALL, PPLBuiltinOperators.JSON_EXTRACT_ALL); // internal
+      registerOperator(MAP_FILTER_KEYS, PPLBuiltinOperators.MAP_FILTER_KEYS); // internal
 
       // Register operators with a different type checker
 

@@ -9,6 +9,7 @@ import java.util.AbstractCollection;
 import java.util.ArrayDeque;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.Setter;
@@ -29,6 +30,14 @@ public class PushDownContext extends AbstractCollection<PushDownOperation> {
 
   private boolean isAggregatePushed = false;
   @Setter private AggSpec aggSpec;
+
+  /**
+   * Schema-on-read (RFC #4984): unmapped field names carried by the {@code _MAP} column, threaded
+   * to the request builder so {@code _source} fetches only these instead of the whole document.
+   * Copied across all clone paths; if it were lost, the request builder safely falls back to full
+   * source.
+   */
+  @Setter private Set<String> dynamicFieldsSourceIncludes = Set.of();
 
   // Records the start pos of the query, which is updated by new added limit operations.
   private int startFrom = 0;
@@ -53,6 +62,7 @@ public class PushDownContext extends AbstractCollection<PushDownOperation> {
       newContext.add(operation);
     }
     newContext.aggSpec = aggSpec;
+    newContext.dynamicFieldsSourceIncludes = dynamicFieldsSourceIncludes;
     return newContext;
   }
 
@@ -69,6 +79,7 @@ public class PushDownContext extends AbstractCollection<PushDownOperation> {
       }
     }
     newContext.aggSpec = aggSpec == null ? null : aggSpec.withoutBucketSort();
+    newContext.dynamicFieldsSourceIncludes = dynamicFieldsSourceIncludes;
     return newContext;
   }
 
@@ -114,6 +125,7 @@ public class PushDownContext extends AbstractCollection<PushDownOperation> {
       }
       newContext.add(operation);
     }
+    newContext.dynamicFieldsSourceIncludes = dynamicFieldsSourceIncludes;
     return newContext;
   }
 
@@ -205,6 +217,8 @@ public class PushDownContext extends AbstractCollection<PushDownOperation> {
 
   public OpenSearchRequestBuilder createRequestBuilder() {
     OpenSearchRequestBuilder newRequestBuilder = osIndex.createRequestBuilder();
+    // Make schema-on-read includes available before operation actions (project pushdown) run.
+    newRequestBuilder.setDynamicFieldsSourceIncludes(dynamicFieldsSourceIncludes);
     if (operationsForRequestBuilder != null) {
       operationsForRequestBuilder.forEach(
           operation -> ((OSRequestBuilderAction) operation.action()).apply(newRequestBuilder));
