@@ -10,6 +10,7 @@ import static org.opensearch.sql.expression.function.BuiltinFunctionName.*;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -776,6 +777,17 @@ public class AstExpressionBuilder extends OpenSearchPPLParserBaseVisitor<Unresol
   @Override
   public UnresolvedExpression visitIdentsAsWildcardQualifiedName(
       IdentsAsWildcardQualifiedNameContext ctx) {
+    if (ctx.STAR() != null) {
+      // Trailing .* — build qualified name from wildcard parts then append "*"
+      List<String> parts =
+          new ArrayList<>(
+              ctx.wildcard().stream()
+                  .map(RuleContext::getText)
+                  .map(StringUtils::unquoteIdentifier)
+                  .collect(Collectors.toList()));
+      parts.add("*");
+      return new QualifiedName(parts);
+    }
     return visitIdentifiers(ctx.wildcard());
   }
 

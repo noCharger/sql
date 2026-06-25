@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.Stack;
 import java.util.function.BiFunction;
 import lombok.Getter;
@@ -85,6 +86,19 @@ public class CalcitePlanContext {
   /** Whether we're currently inside a lambda context. */
   @Getter @Setter private boolean inLambdaContext = false;
 
+  /**
+   * Schema-on-read (RFC #4984) state. When enabled, the index scan appends a {@code _MAP} catch-all
+   * column unconditionally, and the name resolver falls back to it for any field absent from the
+   * static schema. No per-query field list is needed: support is command-agnostic. Off by default,
+   * only enabled when {@code plugins.calcite.schema_on_read.enabled} is set.
+   */
+  @Getter private boolean schemaOnReadEnabled = false;
+
+  /** Enable schema-on-read for this query. */
+  public void enableSchemaOnRead() {
+    this.schemaOnReadEnabled = true;
+  }
+
   private CalcitePlanContext(FrameworkConfig config, SysLimit sysLimit, QueryType queryType) {
     this.config = config;
     this.sysLimit = sysLimit;
@@ -113,6 +127,7 @@ public class CalcitePlanContext {
     this.rexLambdaRefMap = new HashMap<>(); // New map for lambda variables
     this.capturedVariables = new ArrayList<>(); // New list for captured variables
     this.inLambdaContext = true; // Mark that we're inside a lambda
+    this.schemaOnReadEnabled = parent.schemaOnReadEnabled;
   }
 
   public RexNode resolveJoinCondition(

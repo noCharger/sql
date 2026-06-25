@@ -12,6 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -420,5 +422,28 @@ public class JsonExtractAllFunctionImplTest {
     assertEquals(100, map.size());
     assertEquals("0", map.get("field0"));
     assertEquals("99", map.get("field99"));
+  }
+
+  @Test
+  public void testKeysAreReturnedInLexicographicOrder() {
+    Map<String, String> result = jsonExtractAll("{\"z\": 1, \"a\": 2, \"m\": 3, \"b\": 4}");
+    assertNotNull(result);
+    assertEquals(List.of("a", "b", "m", "z"), new ArrayList<>(result.keySet()));
+  }
+
+  @Test
+  public void testNestedKeysAreSortedLexicographically() {
+    Map<String, String> result =
+        jsonExtractAll(
+            """
+            {
+              "user": {"name": "John", "age": 30},
+              "method": "GET",
+              "status": 200
+            }\
+            """);
+    assertNotNull(result);
+    assertEquals(
+        List.of("method", "status", "user.age", "user.name"), new ArrayList<>(result.keySet()));
   }
 }

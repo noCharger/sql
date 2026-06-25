@@ -151,6 +151,26 @@ public class CalcitePPLSpathTest extends CalcitePPLAbstractTest {
                 + "  LogicalTableScan(table=[[scott, EMP]])\n");
   }
 
+  // --- Step 2-2: Partial wildcard support ---
+
+  @Test
+  public void testSpathAutoExtractWithPartialWildcard() {
+    // result.user.* should generate MAP_FILTER_KEYS filtering MAP keys matching "user.*"
+    withPPLQuery("source=EMP | spath input=ENAME output=result | fields result.user.*")
+        .expectLogical(
+            "LogicalProject(result.user.*=[MAP_FILTER_KEYS(JSON_EXTRACT_ALL($1), 'user.*')])\n"
+                + "  LogicalTableScan(table=[[scott, EMP]])\n");
+  }
+
+  @Test
+  public void testSpathAutoExtractWithFullWildcardFromMap() {
+    // result.* should generate MAP_FILTER_KEYS with pattern "*" (all MAP keys)
+    withPPLQuery("source=EMP | spath input=ENAME output=result | fields result.*")
+        .expectLogical(
+            "LogicalProject(result.*=[MAP_FILTER_KEYS(JSON_EXTRACT_ALL($1), '*')])\n"
+                + "  LogicalTableScan(table=[[scott, EMP]])\n");
+  }
+
   @Test
   public void testSpathAutoExtractModeWithSort() {
     withPPLQuery("source=EMP | spath input=ENAME output=result" + " | sort result.user.name")

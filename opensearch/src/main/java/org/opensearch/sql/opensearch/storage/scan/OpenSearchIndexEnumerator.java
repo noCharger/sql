@@ -7,11 +7,14 @@ package org.opensearch.sql.opensearch.storage.scan;
 
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import org.apache.calcite.linq4j.Enumerator;
 import org.opensearch.core.tasks.TaskCancelledException;
+import org.opensearch.sql.calcite.plan.DynamicFieldsConstants;
 import org.opensearch.sql.data.model.ExprValue;
 import org.opensearch.sql.data.model.ExprValueUtils;
 import org.opensearch.sql.exception.NonFallbackCalciteException;
@@ -109,7 +112,32 @@ public class OpenSearchIndexEnumerator implements Enumerator<Object> {
       ExprValue hl = ExprValueUtils.getTupleValue(value).get(HighlightExpression.HIGHLIGHT_FIELD);
       return (hl != null && !hl.isMissing() && !hl.isNull()) ? hl : null;
     }
+    if (DynamicFieldsConstants.DYNAMIC_FIELDS_MAP.equals(rawPath)) {
+      return buildDynamicFieldsMap(value);
+    }
     return ExprValueUtils.resolveRefPaths(value, List.of(rawPath.split("\\."))).valueForCalcite();
+  }
+
+  /**
+   * Schema-on-read (RFC #4984): materialize the {@code _MAP} catch-all column from the hit's parsed
+   * {@code _source}. Every top-level source field is exposed in the map (keyed by name) so that
+   * {@code ITEM(_MAP, 'field')} can resolve fields that were not declared in the index mapping.
+   * Including already-mapped fields is harmless — they are read through their own columns.
+   *
+   * <p>Values are stringified to match the {@code MAP<VARCHAR, VARCHAR>} column type (RFC Step 1's
+   * "treat as STRING"), the same representation {@code JSON_EXTRACT_ALL} uses for {@code spath}.
+   * The existing implicit VARCHAR→numeric coercion then handles arithmetic and aggregations.
+   */
+  private Object buildDynamicFieldsMap(ExprValue value) {
+    Map<String, String> map = new LinkedHashMap<>();
+    for (Map.Entry<String, ExprValue> entry : ExprValueUtils.getTupleValue(value).entrySet()) {
+      ExprValue fieldValue = entry.getValue();
+      if (fieldValue == null || fieldValue.isMissing()) {
+        continue;
+      }
+      map.put(entry.getKey(), fieldValue.isNull() ? null : String.valueOf(fieldValue.value()));
+    }
+    return map;
   }
 
   @Override

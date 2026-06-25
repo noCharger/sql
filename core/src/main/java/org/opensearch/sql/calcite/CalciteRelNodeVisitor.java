@@ -169,6 +169,7 @@ import org.opensearch.sql.ast.tree.Window;
 import org.opensearch.sql.calcite.plan.AliasFieldsWrappable;
 import org.opensearch.sql.calcite.plan.HighlightPushDown;
 import org.opensearch.sql.calcite.plan.OpenSearchConstants;
+import org.opensearch.sql.calcite.plan.SchemaOnReadPushDown;
 import org.opensearch.sql.calcite.plan.rel.LogicalGraphLookup;
 import org.opensearch.sql.calcite.plan.rel.LogicalSystemLimit;
 import org.opensearch.sql.calcite.plan.rel.LogicalSystemLimit.SystemLimitType;
@@ -260,6 +261,20 @@ public class CalciteRelNodeVisitor extends AbstractNodeVisitor<RelNode, CalciteP
       context.relBuilder.push(newScan);
       scan = newScan;
       context.setHighlightConfig(null); // consumed
+    }
+
+    // Schema-on-read (RFC #4984): when enabled, append the _MAP catch-all column to the scan
+    // unconditionally. The name resolver is self-gating on the presence of _MAP, so any
+    // referenced-but-unmapped field resolves to ITEM(_MAP, 'field') for free, regardless of which
+    // command holds the reference. This makes dynamic-field support command-agnostic (no
+    // per-command pre-pass). Targeted _source fetch is recovered by a generic plan-layer collector.
+    if (context.isSchemaOnReadEnabled() && scan instanceof SchemaOnReadPushDown) {
+      RelNode newScan = ((SchemaOnReadPushDown) scan).applyDynamicFieldsColumn();
+      if (newScan != scan) {
+        context.relBuilder.build(); // pop old scan
+        context.relBuilder.push(newScan);
+        scan = newScan;
+      }
     }
 
     if (scan instanceof AliasFieldsWrappable) {
@@ -543,6 +558,11 @@ public class CalciteRelNodeVisitor extends AbstractNodeVisitor<RelNode, CalciteP
                     .filter(addedFields::add)
                     .toList();
             if (matchingFields.isEmpty()) {
+              // Wildcard matched no schema column — try MAP sub-key wildcard (Step 2-2).
+              RexNode mapWildcard = tryResolveMapWildcard(fieldName, currentFields, context);
+              if (mapWildcard != null && addedFields.add(fieldName)) {
+                expandedFields.add(mapWildcard);
+              }
               continue;
             }
             matchingFields.forEach(f -> expandedFields.add(context.relBuilder.field(f)));
@@ -618,6 +638,45 @@ public class CalciteRelNodeVisitor extends AbstractNodeVisitor<RelNode, CalciteP
       throw new IllegalArgumentException(
           String.format("wildcard pattern [%s] matches no fields", firstWildcardPattern));
     }
+  }
+
+  /**
+   * Tries to interpret a wildcard field name (e.g. {@code result.user.*}) as a partial-wildcard
+   * selection on a MAP-typed schema column. Finds the shortest prefix of {@code fieldName} that
+   * matches a MAP column in the current schema, then generates {@code MAP_FILTER_KEYS(mapCol,
+   * subkeyPattern)} aliased to {@code fieldName}.
+   *
+   * <p>Returns {@code null} when no such MAP column exists, letting the normal {@link
+   * #validateWildcardPatterns} error path handle the unknown pattern.
+   */
+  private RexNode tryResolveMapWildcard(
+      String fieldName, List<String> currentFields, CalcitePlanContext context) {
+    String[] parts = fieldName.split("\\.", -1);
+    StringBuilder prefixBuilder = new StringBuilder();
+    for (int i = 0; i < parts.length - 1; i++) {
+      if (i > 0) {
+        prefixBuilder.append('.');
+      }
+      prefixBuilder.append(parts[i]);
+      String prefix = prefixBuilder.toString();
+      if (!currentFields.contains(prefix)) {
+        continue;
+      }
+      RelDataTypeField schemaField =
+          context.relBuilder.peek().getRowType().getField(prefix, false, false);
+      if (schemaField == null || schemaField.getType().getSqlTypeName() != SqlTypeName.MAP) {
+        continue;
+      }
+      // Everything after this prefix (and the separating '.') is the sub-key pattern.
+      String subkeyPattern = fieldName.substring(prefix.length() + 1); // skip 'prefix.'
+      RexNode mapRef = context.relBuilder.field(prefix);
+      RexNode patternLit = context.rexBuilder.makeLiteral(subkeyPattern);
+      RexNode filterCall =
+          PPLFuncImpTable.INSTANCE.resolve(
+              context.rexBuilder, BuiltinFunctionName.MAP_FILTER_KEYS, mapRef, patternLit);
+      return context.relBuilder.alias(filterCall, fieldName);
+    }
+    return null;
   }
 
   private boolean isMetadataField(String fieldName) {

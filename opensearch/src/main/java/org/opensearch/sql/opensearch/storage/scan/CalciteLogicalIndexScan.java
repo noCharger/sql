@@ -18,6 +18,7 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.AbstractRelNode;
 import org.apache.calcite.rel.RelCollation;
@@ -42,7 +43,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.search.aggregations.AggregationBuilder;
 import org.opensearch.sql.ast.tree.HighlightConfig;
+import org.opensearch.sql.calcite.plan.DynamicFieldsConstants;
 import org.opensearch.sql.calcite.plan.HighlightPushDown;
+import org.opensearch.sql.calcite.plan.SchemaOnReadPushDown;
 import org.opensearch.sql.calcite.utils.OpenSearchTypeFactory;
 import org.opensearch.sql.calcite.utils.PPLHintUtils;
 import org.opensearch.sql.common.setting.Settings;
@@ -70,7 +73,8 @@ import org.opensearch.sql.utils.Utils;
 
 /** The logical relational operator representing a scan of an OpenSearchIndex type. */
 @Getter
-public class CalciteLogicalIndexScan extends AbstractCalciteIndexScan implements HighlightPushDown {
+public class CalciteLogicalIndexScan extends AbstractCalciteIndexScan
+    implements HighlightPushDown, SchemaOnReadPushDown {
   private static final Logger LOG = LogManager.getLogger(CalciteLogicalIndexScan.class);
 
   public CalciteLogicalIndexScan(
@@ -83,6 +87,61 @@ public class CalciteLogicalIndexScan extends AbstractCalciteIndexScan implements
         osIndex,
         table.getRowType(),
         new PushDownContext(osIndex));
+  }
+
+  /**
+   * Append the schema-on-read catch-all column to this scan. A single map column named {@value
+   * org.opensearch.sql.calcite.plan.DynamicFieldsConstants#DYNAMIC_FIELDS_MAP} of type {@code
+   * MAP<VARCHAR, VARCHAR>} is added to the scan's row type so that any field reference absent from
+   * the index mapping can be resolved to {@code ITEM(_MAP, '<field>')} downstream by {@link
+   * org.opensearch.sql.calcite.QualifiedNameResolver}. VARCHAR values mirror {@code
+   * spath}/{@code JSON_EXTRACT_ALL} (RFC #4984 Step 1's "treat as STRING"), so the existing
+   * implicit VARCHAR→numeric coercion handles arithmetic and aggregations. Structurally mirrors
+   * {@link #pushDownHighlight}.
+   *
+   * <p>This is applied <b>unconditionally</b> whenever schema-on-read is enabled, independent of
+   * which fields the query references. That makes dynamic-field support command-agnostic: the
+   * resolver fallback is self-gating on the presence of {@code _MAP}, so every command (current and
+   * future) resolves unmapped references for free, with no per-command pre-pass. The targeted
+   * {@code _source} fetch (RFC #4984 Step 5) is recovered separately by a generic plan-layer
+   * collector that scans the built logical plan for {@code ITEM(_MAP, ...)} references; until that
+   * runs, {@link org.opensearch.sql.opensearch.request.OpenSearchRequestBuilder} safely falls back
+   * to fetching the full {@code _source}.
+   *
+   * @return a new scan whose schema carries the {@code _MAP} column, or {@code this} when the column
+   *     is already present (idempotent)
+   */
+  @Override
+  public CalciteLogicalIndexScan applyDynamicFieldsColumn() {
+    if (getRowType().getField(DynamicFieldsConstants.DYNAMIC_FIELDS_MAP, true, false) != null) {
+      return this;
+    }
+    RelDataTypeFactory typeFactory = getCluster().getTypeFactory();
+    RelDataType mapType =
+        typeFactory.createMapType(
+            typeFactory.createSqlType(SqlTypeName.VARCHAR),
+            typeFactory.createSqlType(SqlTypeName.VARCHAR));
+    RelDataTypeFactory.Builder schemaBuilder = typeFactory.builder();
+    schemaBuilder.addAll(getRowType().getFieldList());
+    schemaBuilder.add(DynamicFieldsConstants.DYNAMIC_FIELDS_MAP, mapType);
+    return copyWithNewSchema(schemaBuilder.build());
+  }
+
+  /**
+   * RFC #4984 Step 5: restrict the read-time {@code _source} fetch to the given dynamic field
+   * names, collected generically from the built logical plan by {@link
+   * org.opensearch.sql.calcite.plan.DynamicFieldSourceCollector}. No-op when this scan does not
+   * carry the {@code _MAP} column (so it never narrows a plain scan) or when {@code includes} is
+   * empty (request builder then fetches the full {@code _source}).
+   */
+  @Override
+  public void applyDynamicFieldSourceIncludes(java.util.Set<String> includes) {
+    if (includes == null
+        || includes.isEmpty()
+        || getRowType().getField(DynamicFieldsConstants.DYNAMIC_FIELDS_MAP, true, false) == null) {
+      return;
+    }
+    getPushDownContext().setDynamicFieldsSourceIncludes(includes);
   }
 
   public RelNode pushDownHighlight(HighlightConfig highlightConfig) {
@@ -158,6 +217,12 @@ public class CalciteLogicalIndexScan extends AbstractCalciteIndexScan implements
   }
 
   public AbstractRelNode pushDownFilter(Filter filter) {
+    // Schema-on-read (RFC #4984): a filter that references the synthetic _MAP column cannot be
+    // translated to an OpenSearch DSL query (the column does not exist in the index). Returning
+    // null leaves the filter above the scan so Calcite evaluates it against the materialized _MAP.
+    if (referencesDynamicFieldsMap(filter.getCondition())) {
+      return null;
+    }
     try {
       RelDataType rowType = this.getRowType();
       List<String> schema = buildSchema();
@@ -193,6 +258,38 @@ public class CalciteLogicalIndexScan extends AbstractCalciteIndexScan implements
       }
     }
     return null;
+  }
+
+  /** Whether {@code condition} references the schema-on-read {@code _MAP} catch-all column. */
+  private boolean referencesDynamicFieldsMap(RexNode condition) {
+    int mapIndex = getRowType().getFieldNames().indexOf(DynamicFieldsConstants.DYNAMIC_FIELDS_MAP);
+    if (mapIndex < 0) {
+      return false;
+    }
+    return RelOptUtil.InputFinder.bits(condition).get(mapIndex);
+  }
+
+  /**
+   * Whether an aggregate (optionally with an intermediate project) reads the schema-on-read {@code
+   * _MAP} column of this scan. When a {@code project} sits between the scan and the aggregate, the
+   * aggregate addresses the project's outputs, so it is enough to inspect the project's
+   * expressions; otherwise the aggregate's group set and call arguments index the scan directly.
+   */
+  private boolean aggregateReferencesDynamicFieldsMap(
+      Aggregate aggregate, @Nullable Project project) {
+    int mapIndex = getRowType().getFieldNames().indexOf(DynamicFieldsConstants.DYNAMIC_FIELDS_MAP);
+    if (mapIndex < 0) {
+      return false;
+    }
+    if (project != null) {
+      return project.getProjects().stream()
+          .anyMatch(expr -> RelOptUtil.InputFinder.bits(expr).get(mapIndex));
+    }
+    if (aggregate.getGroupSet().get(mapIndex)) {
+      return true;
+    }
+    return aggregate.getAggCallList().stream()
+        .anyMatch(call -> call.getArgList().contains(mapIndex));
   }
 
   /**
@@ -372,6 +469,12 @@ public class CalciteLogicalIndexScan extends AbstractCalciteIndexScan implements
   }
 
   public AbstractRelNode pushDownAggregate(Aggregate aggregate, @Nullable Project project) {
+    // Schema-on-read (RFC #4984): an aggregation that reads the synthetic _MAP column cannot be
+    // translated to an OpenSearch aggregation (the column does not exist in the index). Returning
+    // null keeps the aggregate above the scan so Calcite evaluates it on the materialized _MAP.
+    if (aggregateReferencesDynamicFieldsMap(aggregate, project)) {
+      return null;
+    }
     try {
       CalciteLogicalIndexScan newScan =
           new CalciteLogicalIndexScan(
