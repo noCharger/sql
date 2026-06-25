@@ -16,6 +16,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.sql.ast.expression.QualifiedName;
+import org.opensearch.sql.calcite.plan.DynamicFieldsConstants;
 import org.opensearch.sql.common.error.ErrorCode;
 import org.opensearch.sql.common.error.ErrorReport;
 import org.opensearch.sql.expression.function.BuiltinFunctionName;
@@ -91,7 +92,28 @@ public class QualifiedNameResolver {
 
     return resolveCorrelationField(nameNode, context)
         .or(() -> replaceWithNullLiteralInCoalesce(context))
+        .or(() -> resolveViaDynamicFieldsMap(nameNode, context))
         .orElseThrow(() -> getNotFoundException(nameNode));
+  }
+
+  /**
+   * Schema-on-read fallback (RFC #4984): when a name cannot be resolved against the static schema
+   * but the input carries the {@value
+   * org.opensearch.sql.calcite.plan.DynamicFieldsConstants#DYNAMIC_FIELDS_MAP} catch-all column,
+   * rewrite the reference to {@code ITEM(_MAP, '<field>')} rather than failing. This is
+   * self-gating: the {@code _MAP} column is only present when the schema-on-read pre-pass injected
+   * it, so the fallback never fires for ordinary queries. Keyed to the exact {@code _MAP} column
+   * name, so it does not interfere with named maps produced by {@code spath}.
+   */
+  private static Optional<RexNode> resolveViaDynamicFieldsMap(
+      QualifiedName nameNode, CalcitePlanContext context) {
+    List<String> currentFields = context.relBuilder.peek().getRowType().getFieldNames();
+    if (!currentFields.contains(DynamicFieldsConstants.DYNAMIC_FIELDS_MAP)) {
+      return Optional.empty();
+    }
+    log.debug("resolveViaDynamicFieldsMap() resolving {} via _MAP", nameNode);
+    RexNode mapField = context.relBuilder.field(DynamicFieldsConstants.DYNAMIC_FIELDS_MAP);
+    return Optional.of(createItemAccess(mapField, nameNode.toString(), context));
   }
 
   private static String joinParts(List<String> parts, int start, int length) {

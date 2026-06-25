@@ -452,6 +452,33 @@ class OpenSearchRequestBuilderTest {
   }
 
   @Test
+  void test_schema_on_read_targeted_source_fetch() {
+    // RFC #4984 Step 5: when _MAP is projected and the referenced unmapped fields are known,
+    // _source
+    // is restricted to (mapped projected names + unmapped fields) instead of fetching the whole
+    // doc.
+    requestBuilder.setDynamicFieldsSourceIncludes(Set.of("undeclared_field"));
+    requestBuilder.pushDownProjectStream(
+        java.util.stream.Stream.of(
+            "name", org.opensearch.sql.calcite.plan.DynamicFieldsConstants.DYNAMIC_FIELDS_MAP));
+    FetchSourceContext fsc = requestBuilder.getSourceBuilder().fetchSource();
+    assertEquals(
+        java.util.List.of("name", "undeclared_field"), java.util.Arrays.asList(fsc.includes()));
+  }
+
+  @Test
+  void test_schema_on_read_full_source_fallback_when_includes_unknown() {
+    // No referenced set threaded (e.g. lost in a clone) -> safe fallback to full _source (empty
+    // includes), so correctness is preserved even if the optimization cannot apply.
+    requestBuilder.pushDownProjectStream(
+        java.util.stream.Stream.of(
+            "name", org.opensearch.sql.calcite.plan.DynamicFieldsConstants.DYNAMIC_FIELDS_MAP));
+    FetchSourceContext fsc = requestBuilder.getSourceBuilder().fetchSource();
+    assertEquals(true, fsc.fetchSource());
+    assertEquals(0, fsc.includes().length);
+  }
+
+  @Test
   void test_push_down_project_limit() {
     Set<ReferenceExpression> references = Set.of(DSL.ref("intA", INTEGER));
     requestBuilder.pushDownProjects(references);

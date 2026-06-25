@@ -1587,7 +1587,7 @@ tableQualifiedName
    ;
 
 wcQualifiedName
-   : wildcard (DOT wildcard)* # identsAsWildcardQualifiedName
+   : wildcard (DOT wildcard)* (DOT STAR)? # identsAsWildcardQualifiedName
    ;
 
 identifierSeq
@@ -1608,6 +1608,7 @@ tableIdent
 
 wildcard
    : ident (MODULE ident)* (MODULE)?
+   | ID_DATE_SUFFIX
    | SINGLE_QUOTE wildcard SINGLE_QUOTE
    | DOUBLE_QUOTE wildcard DOUBLE_QUOTE
    | BACKTICK wildcard BACKTICK

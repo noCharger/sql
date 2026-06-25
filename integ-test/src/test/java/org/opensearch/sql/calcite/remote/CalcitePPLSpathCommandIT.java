@@ -263,4 +263,44 @@ public class CalcitePPLSpathCommandIT extends PPLIntegTestCase {
     verifySchema(result, schema("doc.user.name", "string"), schema("doc.user.age", "string"));
     verifyDataRows(result, rows("Alice", "25"), rows("John", "30"));
   }
+
+  // --- Step 2-2: Lexicographic key ordering ---
+
+  @Test
+  public void testSpathAutoExtractKeyOrdering() throws IOException {
+    // End-to-end check that stringify_doc (keys n, b, x) extracts to the expected struct
+    // keys/values with all values stringified and null preserved. `fields` restricts the
+    // projection to the two columns of interest — test_spath_auto carries several other
+    // doc fields that would otherwise be returned. NOTE: strict lexicographic key order
+    // (TreeMap) is verified at the unit level in JsonExtractAllFunctionImplTest, since the
+    // org.json JSONObject comparison used here is key-order-independent.
+    JSONObject result =
+        executeQuery(
+            "source=test_spath_auto | spath input=stringify_doc output=result"
+                + " | fields stringify_doc, result");
+    verifySchema(result, schema("stringify_doc", "string"), schema("result", "struct"));
+    verifyDataRows(
+        result,
+        rows(
+            "{\"n\":30,\"b\":true,\"x\":null}",
+            new JSONObject("{\"b\":\"true\",\"n\":\"30\",\"x\":\"null\"}")));
+  }
+
+  // --- Step 2-2: Partial wildcard in fields after spath ---
+
+  @Test
+  public void testSpathAutoExtractPartialWildcard() throws IOException {
+    // fields doc.user.* keeps only the MAP keys matching "user.*", returned as a single
+    // filtered struct column named "doc.user.*". Consistent with the spath MAP-column
+    // model (#5140): a partial wildcard filters keys within the map rather than exploding
+    // into separate top-level columns (which would require the dynamic-column support
+    // reverted in #5139). Keys retain their full dotted form and are lexicographically
+    // ordered by the TreeMap in json_extract_all.
+    JSONObject result = executeQuery("source=test_spath_cmd | spath input=doc | fields doc.user.*");
+    verifySchema(result, schema("doc.user.*", "struct"));
+    verifyDataRows(
+        result,
+        rows(new JSONObject("{\"user.age\":\"25\",\"user.name\":\"Alice\"}")),
+        rows(new JSONObject("{\"user.age\":\"30\",\"user.name\":\"John\"}")));
+  }
 }
