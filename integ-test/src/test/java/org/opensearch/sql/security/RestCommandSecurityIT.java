@@ -61,15 +61,44 @@ public class RestCommandSecurityIT extends SecurityTestBase {
           "cluster:monitor/nodes/stats",
           "cluster:monitor/nodes/info"
         },
-        new String[] {"indices:admin/resolve/index"});
+        new String[] {"indices:admin/resolve/index", "indices:monitor/settings/get"});
     createUser(MONITOR_USER, MONITOR_ROLE);
+
+    createRoleWithPermissions(
+        "rest_cat_indices_role",
+        ALPHA_INDEX,
+        new String[] {"cluster:admin/opensearch/ppl", "cluster:monitor/health"},
+        new String[] {"indices:monitor/settings/get"});
+    createUser("rest_cat_indices_user", "rest_cat_indices_role");
 
     createRoleWithPermissions(
         NO_MONITOR_ROLE,
         ALPHA_INDEX,
         new String[] {"cluster:admin/opensearch/ppl"},
-        new String[] {"indices:data/read/search*"});
+        new String[] {"indices:data/read/search*", "indices:monitor/settings/get"});
     createUser(NO_MONITOR_USER, NO_MONITOR_ROLE);
+  }
+
+  @Test
+  public void monitorUserCanRunCatIndices() throws IOException {
+    JSONObject result = executeQueryAsUser("| rest '/_cat/indices' | fields index", MONITOR_USER);
+    Set<String> names = resolvedNames(result);
+    assertTrue("cat indices should list visible index: " + names, names.contains(ALPHA_INDEX));
+    assertTrue("cat indices should list visible index: " + names, names.contains(BETA_INDEX));
+  }
+
+  @Test
+  public void restrictedUserCannotEnumerateCatIndices() throws IOException {
+    assertDenied(
+        "| rest '/_cat/indices' | fields index",
+        "rest_cat_indices_user",
+        "indices:monitor/settings/get");
+  }
+
+  @Test
+  public void userWithoutClusterMonitorCannotRunCatIndices() throws IOException {
+    assertDenied(
+        "| rest '/_cat/indices' | fields index", NO_MONITOR_USER, "cluster:monitor/health");
   }
 
   @Test

@@ -98,6 +98,47 @@ public class CalcitePPLRestIT extends PPLIntegTestCase {
   }
 
   @Test
+  public void testRestCatIndicesUsesNativeDefaultVisibility() throws IOException {
+    String hiddenIndex = "rest_cat_hidden_test";
+    String closedIndex = "rest_cat_closed_test";
+    // This registered system-index pattern is not implicitly hidden in unsecured OSS.
+    String systemIndex = ".query_execution_request_rest_cat_test";
+    try {
+      Request createHidden = new Request("PUT", "/" + hiddenIndex);
+      createHidden.setJsonEntity("{\"settings\":{\"index.hidden\":true}}");
+      client().performRequest(createHidden);
+      client().performRequest(new Request("PUT", "/" + closedIndex));
+      client().performRequest(new Request("POST", "/" + closedIndex + "/_close"));
+      client().performRequest(new Request("PUT", "/" + systemIndex));
+
+      assertRestCatIndexCount(hiddenIndex, 0);
+      assertRestCatIndexCount(closedIndex, 1);
+      assertRestCatIndexCount(systemIndex, 1);
+    } finally {
+      deleteIndexIfExists(hiddenIndex);
+      deleteIndexIfExists(closedIndex);
+      deleteIndexIfExists(systemIndex);
+    }
+  }
+
+  private void assertRestCatIndexCount(String index, int expectedCount) throws IOException {
+    JSONObject result =
+        executeQuery(
+            "| rest '/_cat/indices' | where index = '" + index + "' | stats count() as cnt");
+    verifyDataRows(result, rows(expectedCount));
+  }
+
+  private void deleteIndexIfExists(String index) throws IOException {
+    try {
+      client().performRequest(new Request("DELETE", "/" + index));
+    } catch (ResponseException e) {
+      if (e.getResponse().getStatusLine().getStatusCode() != 404) {
+        throw e;
+      }
+    }
+  }
+
+  @Test
   public void testRestCatNodesSchema() throws IOException {
     JSONObject result = executeQuery("| rest '/_cat/nodes' | fields name, cpu");
     verifySchema(result, schema("name", "string"), schema("cpu", "int"));

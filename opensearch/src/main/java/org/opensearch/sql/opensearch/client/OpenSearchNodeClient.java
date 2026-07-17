@@ -25,12 +25,15 @@ import org.opensearch.action.admin.indices.exists.indices.IndicesExistsRequest;
 import org.opensearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.opensearch.action.admin.indices.get.GetIndexResponse;
 import org.opensearch.action.admin.indices.mapping.get.GetMappingsResponse;
+import org.opensearch.action.admin.indices.settings.get.GetSettingsRequest;
 import org.opensearch.action.admin.indices.settings.get.GetSettingsResponse;
 import org.opensearch.action.search.*;
+import org.opensearch.action.support.IndicesOptions;
 import org.opensearch.cluster.health.ClusterIndexHealth;
 import org.opensearch.cluster.metadata.AliasMetadata;
 import org.opensearch.common.action.ActionFuture;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.core.common.Strings;
 import org.opensearch.index.IndexNotFoundException;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.sql.common.error.ErrorCode;
@@ -301,8 +304,20 @@ public class OpenSearchNodeClient implements OpenSearchClient {
 
   @Override
   public List<Map<String, Object>> catIndices(Map<String, String> params) {
-    ClusterHealthResponse response =
-        client.admin().cluster().health(new ClusterHealthRequest()).actionGet();
+    GetSettingsRequest visibleRequest = new GetSettingsRequest();
+    visibleRequest.indices(Strings.EMPTY_ARRAY);
+    visibleRequest.indicesOptions(IndicesOptions.strictExpand());
+    visibleRequest.names(IndexSettings.INDEX_SEARCH_THROTTLED.getKey());
+    GetSettingsResponse visibleResponse =
+        client.admin().indices().getSettings(visibleRequest).actionGet();
+    String[] visibleIndices = visibleResponse.getIndexToSettings().keySet().toArray(String[]::new);
+    if (visibleIndices.length == 0) {
+      return List.of();
+    }
+
+    ClusterHealthRequest healthRequest = new ClusterHealthRequest(visibleIndices);
+    healthRequest.indicesOptions(IndicesOptions.lenientExpandHidden());
+    ClusterHealthResponse response = client.admin().cluster().health(healthRequest).actionGet();
     List<Map<String, Object>> rows = new java.util.ArrayList<>();
     for (Map.Entry<String, ClusterIndexHealth> entry : response.getIndices().entrySet()) {
       ClusterIndexHealth health = entry.getValue();
