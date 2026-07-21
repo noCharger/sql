@@ -5,8 +5,10 @@
 
 package org.opensearch.sql.common.cluster;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.commons.text.similarity.CosineSimilarity;
 
@@ -82,15 +84,45 @@ public class TextSimilarityClustering {
     return vectorCache.computeIfAbsent(value, this::vectorize);
   }
 
-  private Map<CharSequence, Integer> vectorize(String value) {
+  /**
+   * Vectorize a value into a token-frequency map. Equivalent to counting {@link #extractKeys}, so
+   * the same vector can be rebuilt at query time from keys computed and stored at index time.
+   */
+  public Map<CharSequence, Integer> vectorize(String value) {
     if (value == null || value.isEmpty()) {
       return Map.of();
     }
+    return countKeys(extractKeys(value));
+  }
+
+  /**
+   * Extract the clustering keys for a value, with multiplicity and in order. These are the exact
+   * units the similarity vector counts: position-prefixed tokens (TERMLIST), normalized tokens
+   * (TERMSET), or character trigrams (NGRAMSET). Exposing them lets the keys be computed once, for
+   * example by an index-time ingest processor, and stored so query-time clustering can rebuild the
+   * vector via {@link #countKeys} without re-tokenizing the raw source.
+   */
+  public List<String> extractKeys(String value) {
+    if (value == null || value.isEmpty()) {
+      return List.of();
+    }
     return switch (matchMode) {
-      case TERMSET -> vectorizeTermSet(value);
-      case NGRAMSET -> vectorizeNgramSet(value);
-      default -> vectorizeTermList(value);
+      case TERMSET -> termSetKeys(value);
+      case NGRAMSET -> ngramSetKeys(value);
+      default -> termListKeys(value);
     };
+  }
+
+  public static Map<CharSequence, Integer> countKeys(List<String> keys) {
+    Map<CharSequence, Integer> vector = HashMap.newHashMap(keys.size());
+    for (String key : keys) {
+      vector.merge(key, 1, Integer::sum);
+    }
+    return vector;
+  }
+
+  public double cosine(Map<CharSequence, Integer> vector1, Map<CharSequence, Integer> vector2) {
+    return COSINE.cosineSimilarity(vector1, vector2);
   }
 
   private static final java.util.regex.Pattern NUMERIC_PATTERN =
@@ -100,50 +132,41 @@ public class TextSimilarityClustering {
     return NUMERIC_PATTERN.matcher(token).matches() ? "*" : token;
   }
 
-  /** Positional term frequency — token order matters. */
-  private Map<CharSequence, Integer> vectorizeTermList(String value) {
+  private List<String> termListKeys(String value) {
     String[] tokens = tokenize(value);
-    Map<CharSequence, Integer> vector = HashMap.newHashMap(tokens.length);
-
+    List<String> keys = new ArrayList<>(tokens.length);
     for (int i = 0; i < tokens.length; i++) {
       if (!tokens[i].isEmpty()) {
-        String key = i + "-" + normalizeToken(tokens[i]);
-        vector.merge(key, 1, Integer::sum);
+        keys.add(i + "-" + normalizeToken(tokens[i]));
       }
     }
-    return vector;
+    return keys;
   }
 
-  /** Bag-of-words term frequency — token order ignored. */
-  private Map<CharSequence, Integer> vectorizeTermSet(String value) {
+  private List<String> termSetKeys(String value) {
     String[] tokens = tokenize(value);
-    Map<CharSequence, Integer> vector = HashMap.newHashMap(tokens.length);
-
+    List<String> keys = new ArrayList<>(tokens.length);
     for (String token : tokens) {
       if (!token.isEmpty()) {
-        vector.merge(normalizeToken(token), 1, Integer::sum);
+        keys.add(normalizeToken(token));
       }
     }
-    return vector;
+    return keys;
   }
 
-  /** Character trigram frequency. */
-  private Map<CharSequence, Integer> vectorizeNgramSet(String value) {
+  private List<String> ngramSetKeys(String value) {
     if (value.length() < 3) {
-      // For very short strings, fall back to character frequency
-      Map<CharSequence, Integer> vector = new HashMap<>();
+      List<String> keys = new ArrayList<>(value.length());
       for (char c : value.toCharArray()) {
-        vector.merge(String.valueOf(c), 1, Integer::sum);
+        keys.add(String.valueOf(c));
       }
-      return vector;
+      return keys;
     }
-
-    Map<CharSequence, Integer> vector = HashMap.newHashMap(Math.max(0, value.length() - 2));
+    List<String> keys = new ArrayList<>(value.length());
     for (int i = 0; i <= value.length() - 3; i++) {
-      String ngram = value.substring(i, i + 3);
-      vector.merge(ngram, 1, Integer::sum);
+      keys.add(value.substring(i, i + 3));
     }
-    return vector;
+    return keys;
   }
 
   private String[] tokenize(String value) {

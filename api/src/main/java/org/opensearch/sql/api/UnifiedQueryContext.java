@@ -7,6 +7,7 @@ package org.opensearch.sql.api;
 
 import static org.opensearch.sql.common.setting.Settings.Key.CALCITE_ENGINE_ENABLED;
 import static org.opensearch.sql.common.setting.Settings.Key.CLUSTER_BUFFER_LIMIT;
+import static org.opensearch.sql.common.setting.Settings.Key.CLUSTER_DISTRIBUTED;
 import static org.opensearch.sql.common.setting.Settings.Key.CLUSTER_MAX_CLUSTERS;
 import static org.opensearch.sql.common.setting.Settings.Key.PATTERN_BUFFER_LIMIT;
 import static org.opensearch.sql.common.setting.Settings.Key.PATTERN_MAX_SAMPLE_COUNT;
@@ -42,6 +43,7 @@ import org.opensearch.sql.api.spec.UnifiedPplSpec;
 import org.opensearch.sql.api.spec.UnifiedSqlSpec;
 import org.opensearch.sql.calcite.CalcitePlanContext;
 import org.opensearch.sql.calcite.SysLimit;
+import org.opensearch.sql.calcite.udf.udaf.ClusterLabelAggFunction;
 import org.opensearch.sql.common.setting.Settings;
 import org.opensearch.sql.executor.QueryType;
 import org.opensearch.sql.monitor.profile.MetricName;
@@ -164,7 +166,8 @@ public class UnifiedQueryContext implements AutoCloseable {
                 Map.entry(PATTERN_MAX_SAMPLE_COUNT, 10),
                 Map.entry(PATTERN_BUFFER_LIMIT, 100000),
                 Map.entry(CLUSTER_BUFFER_LIMIT, 50000),
-                Map.entry(CLUSTER_MAX_CLUSTERS, 10000),
+                Map.entry(CLUSTER_MAX_CLUSTERS, ClusterLabelAggFunction.DEFAULT_MAX_CLUSTERS),
+                Map.entry(CLUSTER_DISTRIBUTED, false),
                 Map.entry(PATTERN_SHOW_NUMBERED_TOKEN, false)));
 
     /**

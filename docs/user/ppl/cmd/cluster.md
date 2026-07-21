@@ -2,6 +2,8 @@
 
 The `cluster` command groups documents into clusters based on text similarity using various clustering algorithms. Documents with similar text content are assigned to the same cluster and receive matching `cluster_label` values. Rows where the source field is null are excluded from the results.
 
+This command is experimental as of OpenSearch 3.8. Its behavior, defaults, and settings may change in future releases.
+
 ## Syntax
 
 The `cluster` command has the following syntax:
@@ -23,7 +25,7 @@ The `cluster` command supports the following parameters.
 | `countfield` | Optional | Name of the field to store the cluster size. Default is `cluster_count`. |
 | `showcount` | Optional | Whether to include the cluster count field in the output. Default is `false`. |
 | `labelonly` | Optional | When `true`, keeps all rows and only adds the cluster label. When `false` (default), deduplicates by keeping only the first representative row per cluster. Default is `false`. |
-| `delims` | Optional | Characters used to split the field into tokens. Accepts either the keyword `non-alphanumeric` (the default, which splits on any character that is not a letter, digit, or underscore) or a string whose individual characters are each treated as a delimiter. For example, `delims=" ,;"` splits on space, comma, and semicolon. |
+| `delims` | Optional | Characters used to split the field into tokens. Either the keyword `non-alphanumeric` (split on any character that is not a letter, digit, or underscore) or a string whose individual characters are each treated as a delimiter, for example `delims=" ,;"` splits on space, comma, and semicolon. Default is `non-alphanumeric`. |
 
 
 ## Example 1: Basic text clustering
@@ -218,7 +220,7 @@ The `cluster` command exposes two cluster-level guardrails. Both are `NodeScope`
 | Setting | Default | Minimum | Description |
 | --- | --- | --- | --- |
 | `plugins.ppl.cluster.buffer.limit` | `50000` | `1` | Number of rows buffered on the coordinating node before an incremental clustering pass runs. This bounds transient memory only and does not change the clustering result. Lower it on memory constrained nodes, raise it to reduce the number of incremental passes. |
-| `plugins.ppl.cluster.max.clusters` | `10000` | `1` | Maximum number of distinct clusters the command will create. Once this many clusters exist, every remaining row is folded into its closest existing cluster instead of forming a new one. This value changes the output because it caps how many distinct `cluster_label` values are possible. |
+| `plugins.ppl.cluster.max.clusters` | `1000` | `1` | Maximum number of distinct clusters the command will create. Once this many clusters exist, every remaining row is folded into its closest existing cluster instead of forming a new one. This value changes the output because it caps how many distinct `cluster_label` values are possible. |
 
 ## Performance and limitations
 
@@ -227,3 +229,5 @@ Clustering runs on the coordinating node. Every buffered row is compared against
 The cost driver is the cluster count, not the row count. On a field with near unique values (for example a field with an embedded identifier, timestamp, or request ID), the command tries to create a very large number of clusters, and the per row comparison cost grows accordingly. `plugins.ppl.cluster.max.clusters` exists to bound this: it caps the comparisons per row so that a high cardinality field degrades gracefully into a fixed number of clusters instead of running unbounded.
 
 Raising `plugins.ppl.cluster.max.clusters` increases the per row comparison cost and can make queries over high cardinality fields very slow. Long running clustering queries are also subject to the standard PPL query timeout (`plugins.ppl.query.timeout`, default 300 seconds). Before clustering a field, prefer a field whose values naturally fall into a bounded number of groups (log message templates, error categories, status lines) rather than a field with near unique values.
+
+Clustering reads the raw source field and tokenizes it on the coordinating node at query time. It does not reuse OpenSearch's index-time analysis, so the tokenization and comparison cost is paid per query and is not reduced by how the field is indexed. This is inherent to the current implementation and is another reason to prefer the guardrails above, and to use the command carefully, on large or high cardinality data.

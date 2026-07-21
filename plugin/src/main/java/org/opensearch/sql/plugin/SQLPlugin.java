@@ -52,6 +52,7 @@ import org.opensearch.plugins.ActionPlugin;
 import org.opensearch.plugins.ExtensiblePlugin;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.plugins.ScriptPlugin;
+import org.opensearch.plugins.SearchPlugin;
 import org.opensearch.plugins.SystemIndexPlugin;
 import org.opensearch.repositories.RepositoriesService;
 import org.opensearch.rest.BytesRestResponse;
@@ -102,6 +103,8 @@ import org.opensearch.sql.legacy.metrics.Metrics;
 import org.opensearch.sql.legacy.plugin.RestSqlAction;
 import org.opensearch.sql.legacy.plugin.RestSqlStatsAction;
 import org.opensearch.sql.opensearch.client.OpenSearchNodeClient;
+import org.opensearch.sql.opensearch.cluster.ClusterAggregationBuilder;
+import org.opensearch.sql.opensearch.cluster.InternalClusterResult;
 import org.opensearch.sql.opensearch.setting.OpenSearchSettings;
 import org.opensearch.sql.opensearch.storage.OpenSearchDataSourceFactory;
 import org.opensearch.sql.opensearch.storage.script.CompoundedScriptEngine;
@@ -149,6 +152,7 @@ public class SQLPlugin extends Plugin
         ScriptPlugin,
         SystemIndexPlugin,
         JobSchedulerExtension,
+        SearchPlugin,
         ExtensiblePlugin {
 
   private static final Logger LOGGER = LogManager.getLogger(SQLPlugin.class);
@@ -170,6 +174,16 @@ public class SQLPlugin extends Plugin
 
   public String description() {
     return "Use sql to query OpenSearch.";
+  }
+
+  @Override
+  public List<SearchPlugin.AggregationSpec> getAggregations() {
+    org.opensearch.core.xcontent.ContextParser<String, ClusterAggregationBuilder> parser =
+        (p, name) -> ClusterAggregationBuilder.parse(name, p);
+    return List.of(
+        new SearchPlugin.AggregationSpec(
+                ClusterAggregationBuilder.NAME, ClusterAggregationBuilder::new, parser)
+            .addResultReader(InternalClusterResult::new));
   }
 
   @Override

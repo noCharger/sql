@@ -124,7 +124,8 @@ public abstract class CalcitePPLIntegTestCase extends PPLIntegTestCase {
               .put(Key.PATTERN_MAX_SAMPLE_COUNT, 10)
               .put(Key.PATTERN_BUFFER_LIMIT, 100000)
               .put(Key.CLUSTER_BUFFER_LIMIT, 50000)
-              .put(Key.CLUSTER_MAX_CLUSTERS, 10000)
+              .put(Key.CLUSTER_MAX_CLUSTERS, 1000)
+              .put(Key.CLUSTER_DISTRIBUTED, false)
               .build();
 
       @Override

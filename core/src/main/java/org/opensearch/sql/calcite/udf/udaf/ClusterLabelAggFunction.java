@@ -24,8 +24,10 @@ public class ClusterLabelAggFunction
     implements UserDefinedAggFunction<ClusterLabelAggFunction.Acc> {
 
   private static final int DEFAULT_BUFFER_LIMIT = 50000; // rows buffered before a partial merge
-  // caps distinct clusters, which bounds the per-row comparison cost
-  private static final int DEFAULT_MAX_CLUSTERS = 10000;
+  // Caps distinct clusters, which bounds the per-row comparison cost. Single source of truth for
+  // the plugins.ppl.cluster.max.clusters setting default. Kept at 1000 because the benchmark shows
+  // the per-row cost climbs steeply as the cluster count approaches ~10000.
+  public static final int DEFAULT_MAX_CLUSTERS = 1000;
   private static final double DEFAULT_THRESHOLD = 0.8;
   private static final String DEFAULT_MATCH_MODE = "termlist";
   private static final String DEFAULT_DELIMS = " ";

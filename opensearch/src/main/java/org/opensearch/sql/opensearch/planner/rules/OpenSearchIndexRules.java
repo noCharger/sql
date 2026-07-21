@@ -18,6 +18,8 @@ public class OpenSearchIndexRules {
       EnumerableNestedAggregateRule.DEFAULT_CONFIG.toRule();
   private static final RelOptRule GRAPH_LOOKUP_RULE =
       EnumerableGraphLookupRule.DEFAULT_CONFIG.toRule();
+  private static final RelOptRule CLUSTER_DISTRIBUTED_RULE =
+      EnumerableClusterDistributedRule.DEFAULT_CONFIG.toRule();
   // Rule that always pushes down relevance functions regardless of pushdown settings
   private static final RelevanceFunctionPushdownRule RELEVANCE_FUNCTION_RULE =
       RelevanceFunctionPushdownRule.Config.DEFAULT.toRule();
@@ -29,6 +31,7 @@ public class OpenSearchIndexRules {
           SYSTEM_INDEX_SCAN_RULE,
           NESTED_AGGREGATE_RULE,
           GRAPH_LOOKUP_RULE,
+          CLUSTER_DISTRIBUTED_RULE,
           RELEVANCE_FUNCTION_RULE);
 
   private static final ProjectIndexScanRule PROJECT_INDEX_SCAN =

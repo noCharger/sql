@@ -76,7 +76,8 @@ public class CalcitePPLAbstractTest {
     doReturn(-1).when(settings).getSettingValue(Settings.Key.PPL_JOIN_SUBSEARCH_MAXOUT);
     doReturn(-1).when(settings).getSettingValue(Settings.Key.PPL_SUBSEARCH_MAXOUT);
     doReturn(50000).when(settings).getSettingValue(Settings.Key.CLUSTER_BUFFER_LIMIT);
-    doReturn(10000).when(settings).getSettingValue(Settings.Key.CLUSTER_MAX_CLUSTERS);
+    doReturn(1000).when(settings).getSettingValue(Settings.Key.CLUSTER_MAX_CLUSTERS);
+    doReturn(false).when(settings).getSettingValue(Settings.Key.CLUSTER_DISTRIBUTED);
     doReturn(false).when(dataSourceService).dataSourceExists(any());
   }
 

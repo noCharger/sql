@@ -3165,6 +3165,29 @@ public class CalciteRelNodeVisitor extends AbstractNodeVisitor<RelNode, CalciteP
     context.relBuilder.filter(
         context.rexBuilder.makeCall(SqlStdOperatorTable.IS_NOT_NULL, sourceFieldRex));
 
+    // Distributed (map/reduce) mode: lower to a LogicalClusterDistributed node. Phase one issues
+    // the ppl_cluster aggregation to build the global model, phase two labels each row against it.
+    if (node.isDistributed()) {
+      if (!(sourceFieldRex instanceof org.apache.calcite.rex.RexInputRef ref)) {
+        throw new IllegalArgumentException(
+            "distributed cluster requires the source to be a field reference");
+      }
+      org.apache.calcite.rel.RelNode clusterInput = context.relBuilder.build();
+      String sourceName = clusterInput.getRowType().getFieldNames().get(ref.getIndex());
+      context.relBuilder.push(
+          new org.opensearch.sql.calcite.plan.rel.LogicalClusterDistributed(
+              clusterInput.getCluster(),
+              clusterInput.getTraitSet(),
+              clusterInput,
+              sourceName,
+              node.getThreshold(),
+              node.getMatchMode(),
+              node.getDelims(),
+              node.getMaxClusters(),
+              node.getLabelField()));
+      return context.relBuilder.peek();
+    }
+
     // Resolve clustering as a window function over all rows (unbounded frame).
     // The window function buffers all rows, runs the greedy clustering algorithm,
     // and returns an array of cluster labels (one per input row, in order).

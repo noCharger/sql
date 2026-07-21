@@ -29,6 +29,7 @@ import org.opensearch.common.settings.Setting;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.search.aggregations.MultiBucketConsumerService;
+import org.opensearch.sql.calcite.udf.udaf.ClusterLabelAggFunction;
 import org.opensearch.sql.common.antlr.AstBuildGuard;
 import org.opensearch.sql.common.setting.Settings;
 
@@ -133,8 +134,15 @@ public class OpenSearchSettings extends Settings {
   public static final Setting<?> DEFAULT_CLUSTER_MAX_CLUSTERS_SETTING =
       Setting.intSetting(
           Key.CLUSTER_MAX_CLUSTERS.getKeyValue(),
-          10000,
+          ClusterLabelAggFunction.DEFAULT_MAX_CLUSTERS,
           1,
+          Setting.Property.NodeScope,
+          Setting.Property.Dynamic);
+
+  public static final Setting<?> DEFAULT_CLUSTER_DISTRIBUTED_SETTING =
+      Setting.boolSetting(
+          Key.CLUSTER_DISTRIBUTED.getKeyValue(),
+          false,
           Setting.Property.NodeScope,
           Setting.Property.Dynamic);
 
@@ -453,6 +461,12 @@ public class OpenSearchSettings extends Settings {
     register(
         settingBuilder,
         clusterSettings,
+        Key.CLUSTER_DISTRIBUTED,
+        DEFAULT_CLUSTER_DISTRIBUTED_SETTING,
+        new Updater(Key.CLUSTER_DISTRIBUTED));
+    register(
+        settingBuilder,
+        clusterSettings,
         Key.PPL_REX_MAX_MATCH_LIMIT,
         PPL_REX_MAX_MATCH_LIMIT_SETTING,
         new Updater(Key.PPL_REX_MAX_MATCH_LIMIT));
@@ -709,6 +723,7 @@ public class OpenSearchSettings extends Settings {
         .add(DEFAULT_PATTERN_SHOW_NUMBERED_TOKEN_SETTING)
         .add(DEFAULT_CLUSTER_BUFFER_LIMIT_SETTING)
         .add(DEFAULT_CLUSTER_MAX_CLUSTERS_SETTING)
+        .add(DEFAULT_CLUSTER_DISTRIBUTED_SETTING)
         .add(PPL_REX_MAX_MATCH_LIMIT_SETTING)
         .add(PPL_VALUES_MAX_LIMIT_SETTING)
         .add(PPL_SUBSEARCH_MAXOUT_SETTING)

@@ -32,7 +32,7 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
             + " ()):INTEGER NOT NULL)])\n"
             + "        LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
             + " SAL=[$5], COMM=[$6], DEPTNO=[$7], _cluster_labels_array=[cluster_label($1,"
-            + " 0.8E0:DOUBLE, 'termlist':VARCHAR, 'non-alphanumeric':VARCHAR, 50000, 10000) OVER"
+            + " 0.8E0:DOUBLE, 'termlist':VARCHAR, 'non-alphanumeric':VARCHAR, 50000, 1000) OVER"
             + " ()])\n"
             + "          LogicalFilter(condition=[IS NOT NULL($1)])\n"
             + "            LogicalTableScan(table=[[scott, EMP]])\n";
@@ -47,7 +47,7 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
             + "FROM (SELECT `EMPNO`, `ENAME`, `JOB`, `MGR`, `HIREDATE`, `SAL`, `COMM`, `DEPTNO`,"
             + " `_cluster_labels_array`[CAST(ROW_NUMBER() OVER () AS INTEGER)] `cluster_label`\n"
             + "FROM (SELECT `EMPNO`, `ENAME`, `JOB`, `MGR`, `HIREDATE`, `SAL`, `COMM`, `DEPTNO`,"
-            + " `cluster_label`(`ENAME`, 8E-1, 'termlist', 'non-alphanumeric', 50000, 10000) OVER"
+            + " `cluster_label`(`ENAME`, 8E-1, 'termlist', 'non-alphanumeric', 50000, 1000) OVER"
             + " (RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)"
             + " `_cluster_labels_array`\n"
             + "FROM `scott`.`EMP`\n"
@@ -73,7 +73,7 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
             + " ()):INTEGER NOT NULL)])\n"
             + "        LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
             + " SAL=[$5], COMM=[$6], DEPTNO=[$7], _cluster_labels_array=[cluster_label($1,"
-            + " 0.8E0:DOUBLE, 'termlist':VARCHAR, 'non-alphanumeric':VARCHAR, 50000, 10000) OVER"
+            + " 0.8E0:DOUBLE, 'termlist':VARCHAR, 'non-alphanumeric':VARCHAR, 50000, 1000) OVER"
             + " ()])\n"
             + "          LogicalFilter(condition=[IS NOT NULL($1)])\n"
             + "            LogicalTableScan(table=[[scott, EMP]])\n";
@@ -97,7 +97,7 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
             + " ()):INTEGER NOT NULL)])\n"
             + "        LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
             + " SAL=[$5], COMM=[$6], DEPTNO=[$7], _cluster_labels_array=[cluster_label($1,"
-            + " 0.8E0:DOUBLE, 'termset':VARCHAR, 'non-alphanumeric':VARCHAR, 50000, 10000) OVER"
+            + " 0.8E0:DOUBLE, 'termset':VARCHAR, 'non-alphanumeric':VARCHAR, 50000, 1000) OVER"
             + " ()])\n"
             + "          LogicalFilter(condition=[IS NOT NULL($1)])\n"
             + "            LogicalTableScan(table=[[scott, EMP]])\n";
@@ -121,7 +121,7 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
             + " ()):INTEGER NOT NULL)])\n"
             + "        LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
             + " SAL=[$5], COMM=[$6], DEPTNO=[$7], _cluster_labels_array=[cluster_label($1,"
-            + " 0.8E0:DOUBLE, 'ngramset':VARCHAR, 'non-alphanumeric':VARCHAR, 50000, 10000) OVER"
+            + " 0.8E0:DOUBLE, 'ngramset':VARCHAR, 'non-alphanumeric':VARCHAR, 50000, 1000) OVER"
             + " ()])\n"
             + "          LogicalFilter(condition=[IS NOT NULL($1)])\n"
             + "            LogicalTableScan(table=[[scott, EMP]])\n";
@@ -145,7 +145,7 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
             + " ()):INTEGER NOT NULL)])\n"
             + "        LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
             + " SAL=[$5], COMM=[$6], DEPTNO=[$7], _cluster_labels_array=[cluster_label($1,"
-            + " 0.8E0:DOUBLE, 'termlist':VARCHAR, 'non-alphanumeric':VARCHAR, 50000, 10000) OVER"
+            + " 0.8E0:DOUBLE, 'termlist':VARCHAR, 'non-alphanumeric':VARCHAR, 50000, 1000) OVER"
             + " ()])\n"
             + "          LogicalFilter(condition=[IS NOT NULL($1)])\n"
             + "            LogicalTableScan(table=[[scott, EMP]])\n";
@@ -174,7 +174,7 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
             + " ()):INTEGER NOT NULL)])\n"
             + "          LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
             + " SAL=[$5], COMM=[$6], DEPTNO=[$7], _cluster_labels_array=[cluster_label($1,"
-            + " 0.7E0:DOUBLE, 'termset':VARCHAR, ' ', 50000, 10000) OVER ()])\n"
+            + " 0.7E0:DOUBLE, 'termset':VARCHAR, ' ', 50000, 1000) OVER ()])\n"
             + "            LogicalFilter(condition=[IS NOT NULL($1)])\n"
             + "              LogicalTableScan(table=[[scott, EMP]])\n";
     verifyLogical(root, expectedLogical);
@@ -194,7 +194,7 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
             + "FROM (SELECT `EMPNO`, `ENAME`, `JOB`, `MGR`, `HIREDATE`, `SAL`, `COMM`, `DEPTNO`,"
             + " `_cluster_labels_array`[CAST(ROW_NUMBER() OVER () AS INTEGER)] `cluster_label`\n"
             + "FROM (SELECT `EMPNO`, `ENAME`, `JOB`, `MGR`, `HIREDATE`, `SAL`, `COMM`, `DEPTNO`,"
-            + " `cluster_label`(`JOB`, 8E-1, 'termlist', 'non-alphanumeric', 50000, 10000) OVER"
+            + " `cluster_label`(`JOB`, 8E-1, 'termlist', 'non-alphanumeric', 50000, 1000) OVER"
             + " (RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)"
             + " `_cluster_labels_array`\n"
             + "FROM `scott`.`EMP`\n"
@@ -214,7 +214,7 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
             + " NOT NULL)])\n"
             + "  LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
             + " SAL=[$5], COMM=[$6], DEPTNO=[$7], _cluster_labels_array=[cluster_label($1,"
-            + " 0.8E0:DOUBLE, 'termlist':VARCHAR, 'non-alphanumeric':VARCHAR, 50000, 10000) OVER"
+            + " 0.8E0:DOUBLE, 'termlist':VARCHAR, 'non-alphanumeric':VARCHAR, 50000, 1000) OVER"
             + " ()])\n"
             + "    LogicalFilter(condition=[IS NOT NULL($1)])\n"
             + "      LogicalTableScan(table=[[scott, EMP]])\n";
@@ -224,7 +224,7 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
         "SELECT `EMPNO`, `ENAME`, `JOB`, `MGR`, `HIREDATE`, `SAL`, `COMM`, `DEPTNO`,"
             + " `_cluster_labels_array`[CAST(ROW_NUMBER() OVER () AS INTEGER)] `cluster_label`\n"
             + "FROM (SELECT `EMPNO`, `ENAME`, `JOB`, `MGR`, `HIREDATE`, `SAL`, `COMM`, `DEPTNO`,"
-            + " `cluster_label`(`ENAME`, 8E-1, 'termlist', 'non-alphanumeric', 50000, 10000) OVER"
+            + " `cluster_label`(`ENAME`, 8E-1, 'termlist', 'non-alphanumeric', 50000, 1000) OVER"
             + " (RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)"
             + " `_cluster_labels_array`\n"
             + "FROM `scott`.`EMP`\n"
@@ -246,7 +246,7 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
             + " ()):INTEGER NOT NULL)])\n"
             + "    LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
             + " SAL=[$5], COMM=[$6], DEPTNO=[$7], _cluster_labels_array=[cluster_label($1,"
-            + " 0.8E0:DOUBLE, 'termlist':VARCHAR, 'non-alphanumeric':VARCHAR, 50000, 10000) OVER"
+            + " 0.8E0:DOUBLE, 'termlist':VARCHAR, 'non-alphanumeric':VARCHAR, 50000, 1000) OVER"
             + " ()])\n"
             + "      LogicalFilter(condition=[IS NOT NULL($1)])\n"
             + "        LogicalTableScan(table=[[scott, EMP]])\n";
@@ -259,7 +259,7 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
             + "FROM (SELECT `EMPNO`, `ENAME`, `JOB`, `MGR`, `HIREDATE`, `SAL`, `COMM`, `DEPTNO`,"
             + " `_cluster_labels_array`[CAST(ROW_NUMBER() OVER () AS INTEGER)] `cluster_label`\n"
             + "FROM (SELECT `EMPNO`, `ENAME`, `JOB`, `MGR`, `HIREDATE`, `SAL`, `COMM`, `DEPTNO`,"
-            + " `cluster_label`(`ENAME`, 8E-1, 'termlist', 'non-alphanumeric', 50000, 10000) OVER"
+            + " `cluster_label`(`ENAME`, 8E-1, 'termlist', 'non-alphanumeric', 50000, 1000) OVER"
             + " (RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)"
             + " `_cluster_labels_array`\n"
             + "FROM `scott`.`EMP`\n"
