@@ -41,10 +41,13 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.search.aggregations.AggregationBuilder;
+import org.opensearch.search.aggregations.metrics.ScriptedMetricAggregationBuilder;
 import org.opensearch.sql.ast.tree.HighlightConfig;
 import org.opensearch.sql.calcite.plan.HighlightPushDown;
+import org.opensearch.sql.calcite.plan.rel.LogicalCluster;
 import org.opensearch.sql.calcite.utils.OpenSearchTypeFactory;
 import org.opensearch.sql.calcite.utils.PPLHintUtils;
+import org.opensearch.sql.common.cluster.MatchMode;
 import org.opensearch.sql.common.setting.Settings;
 import org.opensearch.sql.data.type.ExprCoreType;
 import org.opensearch.sql.data.type.ExprType;
@@ -53,8 +56,11 @@ import org.opensearch.sql.opensearch.data.type.OpenSearchDataType;
 import org.opensearch.sql.opensearch.data.type.OpenSearchTextType;
 import org.opensearch.sql.opensearch.planner.rules.OpenSearchIndexRules;
 import org.opensearch.sql.opensearch.request.AggregateAnalyzer;
+import org.opensearch.sql.opensearch.request.ClusterScriptedMetricFactory;
 import org.opensearch.sql.opensearch.request.PredicateAnalyzer;
 import org.opensearch.sql.opensearch.request.PredicateAnalyzer.QueryExpression;
+import org.opensearch.sql.opensearch.response.agg.ClusterScriptedMetricParser;
+import org.opensearch.sql.opensearch.response.agg.NoBucketAggregationParser;
 import org.opensearch.sql.opensearch.response.agg.OpenSearchAggregationResponseParser;
 import org.opensearch.sql.opensearch.storage.OpenSearchIndex;
 import org.opensearch.sql.opensearch.storage.scan.context.AbstractAction;
@@ -426,6 +432,72 @@ public class CalciteLogicalIndexScan extends AbstractCalciteIndexScan implements
     } catch (Exception e) {
       if (LOG.isDebugEnabled()) {
         LOG.debug("Cannot pushdown the aggregate {}", aggregate, e);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Push a {@link LogicalCluster} into the scan as a {@code scripted_metric} aggregation (the
+   * distributed cluster command Map phase). The coordinator Reduce (canonical-order greedy merge)
+   * and row binding are handled by {@link ClusterScriptedMetricParser}. Returns null (falling back
+   * to the in-process window plan) when the mode is not supported for pushdown or the source field
+   * is not a real index field.
+   */
+  public AbstractRelNode pushDownCluster(LogicalCluster cluster) {
+    try {
+      // showcount/labelonly are not supported by the scripted_metric Map/Reduce path yet; the
+      // in-process window plan (PPLClusterConvertRule) handles those.
+      if (cluster.isShowCount() || cluster.isLabelOnly()) {
+        return null;
+      }
+      String field = cluster.getSourceFieldName();
+      if (field == null) {
+        // eval-derived source field: not a pushable index field.
+        return null;
+      }
+      RelDataType clusterRowType = cluster.getRowType();
+
+      ScriptedMetricAggregationBuilder smBuilder =
+          ClusterScriptedMetricFactory.build(
+              "cluster",
+              field,
+              cluster.getThreshold(),
+              cluster.getMatchMode(),
+              cluster.getDelims());
+      ClusterScriptedMetricParser clusterParser =
+          new ClusterScriptedMetricParser(
+              "cluster",
+              cluster.getLabelField(),
+              cluster.getCountField(),
+              cluster.isShowCount(),
+              cluster.getThreshold(),
+              MatchMode.fromString(cluster.getMatchMode()),
+              cluster.getDelims());
+      OpenSearchAggregationResponseParser parser = new NoBucketAggregationParser(clusterParser);
+      Pair<List<AggregationBuilder>, OpenSearchAggregationResponseParser> builderAndParser =
+          Pair.of(List.<AggregationBuilder>of(smBuilder), parser);
+
+      Map<String, OpenSearchDataType> extendedTypeMapping =
+          clusterRowType.getFieldList().stream()
+              .collect(
+                  Collectors.toMap(
+                      RelDataTypeField::getName,
+                      f ->
+                          OpenSearchDataType.of(
+                              OpenSearchTypeFactory.convertRelDataTypeToExprType(f.getType()))));
+
+      // scripted_metric is a metric aggregation (no buckets), so bucketNames is empty.
+      CalciteLogicalIndexScan newScan = copyWithNewSchema(clusterRowType);
+      AggSpec aggSpec = AggSpec.create(extendedTypeMapping, List.of(), builderAndParser);
+      newScan.getPushDownContext().setAggSpec(aggSpec);
+      newScan
+          .getPushDownContext()
+          .add(PushDownType.AGGREGATION, cluster, (OSRequestBuilderAction) requestBuilder -> {});
+      return newScan;
+    } catch (Exception e) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Cannot pushdown the cluster {}", cluster, e);
       }
     }
     return null;

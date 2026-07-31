@@ -253,6 +253,16 @@ public abstract class AbstractCalciteIndexScan extends TableScan implements Alia
   /** See source in {@link org.apache.calcite.rel.core.Aggregate::computeSelfCost} */
   private static float getAggMultiplier(
       PushDownOperation operation, PushDownContext pushDownContext) {
+    // For script aggregation, we need to multiply the multiplier by 1.1 to make up the cost. As we
+    // prefer to have non-script agg push down after optimized by {@link PPLAggregateConvertRule}
+    long scriptCount =
+        pushDownContext.getAggSpec() == null ? 0 : pushDownContext.getAggSpec().getScriptCount();
+    // The distributed cluster command records its scripted_metric Map phase under
+    // PushDownType.AGGREGATION but with a LogicalCluster (not a Calcite Aggregate) digest. Cost it
+    // like a single scripted aggregation call rather than casting to Aggregate.
+    if (!(operation.digest() instanceof Aggregate)) {
+      return (1f + 0.125f) * (float) Math.pow(1.1f, Math.max(scriptCount, 1L));
+    }
     // START CALCITE
     List<AggregateCall> aggCalls = ((Aggregate) operation.digest()).getAggCallList();
     float multiplier = 1f + (float) aggCalls.size() * 0.125f;
@@ -265,10 +275,6 @@ public abstract class AbstractCalciteIndexScan extends TableScan implements Alia
     }
     // END CALCITE
 
-    // For script aggregation, we need to multiply the multiplier by 1.1 to make up the cost. As we
-    // prefer to have non-script agg push down after optimized by {@link PPLAggregateConvertRule}
-    long scriptCount =
-        pushDownContext.getAggSpec() == null ? 0 : pushDownContext.getAggSpec().getScriptCount();
     multiplier *= (float) Math.pow(1.1f, scriptCount);
     return multiplier;
   }
@@ -307,6 +313,9 @@ public abstract class AbstractCalciteIndexScan extends TableScan implements Alia
     Stream<LogicalAggregate> aggregates =
         pushDownContext.stream()
             .filter(action -> action.type() == PushDownType.AGGREGATION)
+            // The distributed cluster command records a LogicalCluster (not a LogicalAggregate)
+            // digest under AGGREGATION; it contributes no bucket aggregators, so skip it here.
+            .filter(action -> action.digest() instanceof LogicalAggregate)
             .map(action -> ((LogicalAggregate) action.digest()));
     return aggregates
         .map(aggregate -> isAnyCollationNameInAggregators(aggregate, collations))

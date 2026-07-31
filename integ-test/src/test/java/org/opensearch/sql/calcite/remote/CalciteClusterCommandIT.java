@@ -5,6 +5,8 @@
 
 package org.opensearch.sql.calcite.remote;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.opensearch.sql.legacy.TestsConstants.TEST_INDEX_BANK;
 import static org.opensearch.sql.util.MatcherUtils.rows;
 import static org.opensearch.sql.util.MatcherUtils.schema;
@@ -210,5 +212,81 @@ public class CalciteClusterCommandIT extends PPLIntegTestCase {
         rows("login failed for user admin", 1, 7),
         rows("login failed for user root", 1, 7),
         rows("login failed for user guest", 1, 7));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Distributed path (Increment 2): showcount=false, labelonly=false.
+  //
+  // When cluster is applied directly over a real indexed field, the Map phase is pushed to the
+  // shards as a scripted_metric aggregation (shard-local greedy clustering) and the coordinator
+  // merges the per-shard summaries (HierarchicalClusterMerge). The eval-derived-field cases above
+  // stay on the coordinator window path because a computed field cannot be read from _source on a
+  // shard. These cases require the visitCluster wiring (Step 2) and a running cluster; they assert
+  // the distributed shape rather than data-brittle exact clusters.
+  // ---------------------------------------------------------------------------
+
+  @Test
+  public void testDistributedClusterExplainPushesScriptedMetricToShards() throws IOException {
+    // Clustering an indexed field must push a scripted_metric aggregation down to the shards.
+    String explained =
+        explainQueryToString(
+            String.format("search source=%s | cluster address | fields cluster_label", TEST_INDEX_BANK));
+    assertThat(
+        "distributed cluster should push a scripted_metric aggregation to the shards",
+        explained,
+        containsString("scripted_metric"));
+  }
+
+  @Test
+  public void testDistributedClusterFirstRepresentativeLabelIsOne() throws IOException {
+    // The first representative always receives label 1 regardless of the underlying data, so this
+    // is a stable invariant of the distributed representative output.
+    JSONObject result =
+        executeQuery(
+            String.format(
+                "search source=%s | cluster address | fields cluster_label | head 1",
+                TEST_INDEX_BANK));
+    verifySchema(result, schema("cluster_label", null, "int"));
+    verifyDataRows(result, rows(1));
+  }
+
+  @Test
+  public void testDistributedClusterRepresentativeKeepsOriginalFields() throws IOException {
+    // labelonly=false returns one representative row per cluster with the original fields plus the
+    // cluster label. Assert the output schema shape (representative row + label).
+    JSONObject result =
+        executeQuery(
+            String.format(
+                "search source=%s | cluster address | fields address, cluster_label | head 1",
+                TEST_INDEX_BANK));
+    verifySchema(
+        result, schema("address", null, "string"), schema("cluster_label", null, "int"));
+  }
+
+  @Test
+  public void testDistributedClusterShowCountSchema() throws IOException {
+    // showcount=true adds the coordinator-merged final size per representative.
+    JSONObject result =
+        executeQuery(
+            String.format(
+                "search source=%s | cluster address showcount=true"
+                    + " | fields cluster_label, cluster_count | head 1",
+                TEST_INDEX_BANK));
+    verifySchema(
+        result, schema("cluster_label", null, "int"), schema("cluster_count", null, "bigint"));
+  }
+
+  @Test
+  public void testDistributedClusterTermsetMatchExplain() throws IOException {
+    // match mode is threaded into the scripted_metric params; verify pushdown still occurs.
+    String explained =
+        explainQueryToString(
+            String.format(
+                "search source=%s | cluster address match=termset t=0.7 | fields cluster_label",
+                TEST_INDEX_BANK));
+    assertThat(
+        "termset distributed cluster should still push scripted_metric",
+        explained,
+        containsString("scripted_metric"));
   }
 }

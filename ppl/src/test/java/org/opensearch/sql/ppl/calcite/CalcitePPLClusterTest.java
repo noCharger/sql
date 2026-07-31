@@ -5,14 +5,35 @@
 
 package org.opensearch.sql.ppl.calcite;
 
+import org.apache.calcite.plan.hep.HepPlanner;
+import org.apache.calcite.plan.hep.HepProgram;
+import org.apache.calcite.plan.hep.HepProgramBuilder;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.test.CalciteAssert;
 import org.junit.Test;
+import org.opensearch.sql.calcite.plan.rule.PPLClusterConvertRule;
 
 public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
 
   public CalcitePPLClusterTest() {
     super(CalciteAssert.SchemaSpec.SCOTT_WITH_TEMPORAL);
+  }
+
+  /**
+   * {@link #getRelNode} returns the raw visitor output, which now tops out at {@link
+   * org.opensearch.sql.calcite.plan.rel.LogicalCluster}. The in-process executable plan (the
+   * buffered-window lowering) is produced by {@link PPLClusterConvertRule} during optimization.
+   * SparkSQL assertions apply the convert rule first so the window plan is what gets rendered — this
+   * verifies the convert rule reproduces the exact same window plan end-to-end.
+   */
+  private RelNode lowerCluster(RelNode root) {
+    HepProgram program =
+        new HepProgramBuilder()
+            .addRuleInstance(PPLClusterConvertRule.CLUSTER_CONVERT_RULE)
+            .build();
+    HepPlanner planner = new HepPlanner(program);
+    planner.setRoot(root);
+    return planner.findBestExp();
   }
 
   @Test
@@ -21,21 +42,11 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
     RelNode root = getRelNode(ppl);
 
     String expectedLogical =
-        "LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4], SAL=[$5],"
-            + " COMM=[$6], DEPTNO=[$7], cluster_label=[$8])\n"
-            + "  LogicalFilter(condition=[=($9, 1)])\n"
-            + "    LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
-            + " SAL=[$5], COMM=[$6], DEPTNO=[$7], cluster_label=[$8],"
-            + " _cluster_convergence_row_num=[ROW_NUMBER() OVER (PARTITION BY $8)])\n"
-            + "      LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
-            + " SAL=[$5], COMM=[$6], DEPTNO=[$7], cluster_label=[ITEM($8, CAST(ROW_NUMBER() OVER"
-            + " ()):INTEGER NOT NULL)])\n"
-            + "        LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
-            + " SAL=[$5], COMM=[$6], DEPTNO=[$7], _cluster_labels_array=[cluster_label($1,"
-            + " 0.8E0:DOUBLE, 'termlist':VARCHAR, 'non-alphanumeric':VARCHAR, 50000, 10000) OVER"
-            + " ()])\n"
-            + "          LogicalFilter(condition=[IS NOT NULL($1)])\n"
-            + "            LogicalTableScan(table=[[scott, EMP]])\n";
+        "LogicalCluster(source=[$1], threshold=[0.8], match=[termlist],"
+            + " delims=[non-alphanumeric], labelField=[cluster_label], showCount=[false],"
+            + " labelOnly=[false])\n"
+            + "  LogicalFilter(condition=[IS NOT NULL($1)])\n"
+            + "    LogicalTableScan(table=[[scott, EMP]])\n";
     verifyLogical(root, expectedLogical);
 
     String expectedSparkSql =
@@ -53,7 +64,7 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
             + "FROM `scott`.`EMP`\n"
             + "WHERE `ENAME` IS NOT NULL) `t0`) `t1`) `t2`\n"
             + "WHERE `_cluster_convergence_row_num` = 1";
-    verifyPPLToSparkSQL(root, expectedSparkSql);
+    verifyPPLToSparkSQL(lowerCluster(root), expectedSparkSql);
   }
 
   @Test
@@ -62,21 +73,11 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
     RelNode root = getRelNode(ppl);
 
     String expectedLogical =
-        "LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4], SAL=[$5],"
-            + " COMM=[$6], DEPTNO=[$7], cluster_label=[$8])\n"
-            + "  LogicalFilter(condition=[=($9, 1)])\n"
-            + "    LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
-            + " SAL=[$5], COMM=[$6], DEPTNO=[$7], cluster_label=[$8],"
-            + " _cluster_convergence_row_num=[ROW_NUMBER() OVER (PARTITION BY $8)])\n"
-            + "      LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
-            + " SAL=[$5], COMM=[$6], DEPTNO=[$7], cluster_label=[ITEM($8, CAST(ROW_NUMBER() OVER"
-            + " ()):INTEGER NOT NULL)])\n"
-            + "        LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
-            + " SAL=[$5], COMM=[$6], DEPTNO=[$7], _cluster_labels_array=[cluster_label($1,"
-            + " 0.8E0:DOUBLE, 'termlist':VARCHAR, 'non-alphanumeric':VARCHAR, 50000, 10000) OVER"
-            + " ()])\n"
-            + "          LogicalFilter(condition=[IS NOT NULL($1)])\n"
-            + "            LogicalTableScan(table=[[scott, EMP]])\n";
+        "LogicalCluster(source=[$1], threshold=[0.8], match=[termlist],"
+            + " delims=[non-alphanumeric], labelField=[cluster_label], showCount=[false],"
+            + " labelOnly=[false])\n"
+            + "  LogicalFilter(condition=[IS NOT NULL($1)])\n"
+            + "    LogicalTableScan(table=[[scott, EMP]])\n";
     verifyLogical(root, expectedLogical);
   }
 
@@ -86,21 +87,11 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
     RelNode root = getRelNode(ppl);
 
     String expectedLogical =
-        "LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4], SAL=[$5],"
-            + " COMM=[$6], DEPTNO=[$7], cluster_label=[$8])\n"
-            + "  LogicalFilter(condition=[=($9, 1)])\n"
-            + "    LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
-            + " SAL=[$5], COMM=[$6], DEPTNO=[$7], cluster_label=[$8],"
-            + " _cluster_convergence_row_num=[ROW_NUMBER() OVER (PARTITION BY $8)])\n"
-            + "      LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
-            + " SAL=[$5], COMM=[$6], DEPTNO=[$7], cluster_label=[ITEM($8, CAST(ROW_NUMBER() OVER"
-            + " ()):INTEGER NOT NULL)])\n"
-            + "        LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
-            + " SAL=[$5], COMM=[$6], DEPTNO=[$7], _cluster_labels_array=[cluster_label($1,"
-            + " 0.8E0:DOUBLE, 'termset':VARCHAR, 'non-alphanumeric':VARCHAR, 50000, 10000) OVER"
-            + " ()])\n"
-            + "          LogicalFilter(condition=[IS NOT NULL($1)])\n"
-            + "            LogicalTableScan(table=[[scott, EMP]])\n";
+        "LogicalCluster(source=[$1], threshold=[0.8], match=[termset],"
+            + " delims=[non-alphanumeric], labelField=[cluster_label], showCount=[false],"
+            + " labelOnly=[false])\n"
+            + "  LogicalFilter(condition=[IS NOT NULL($1)])\n"
+            + "    LogicalTableScan(table=[[scott, EMP]])\n";
     verifyLogical(root, expectedLogical);
   }
 
@@ -110,21 +101,11 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
     RelNode root = getRelNode(ppl);
 
     String expectedLogical =
-        "LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4], SAL=[$5],"
-            + " COMM=[$6], DEPTNO=[$7], cluster_label=[$8])\n"
-            + "  LogicalFilter(condition=[=($9, 1)])\n"
-            + "    LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
-            + " SAL=[$5], COMM=[$6], DEPTNO=[$7], cluster_label=[$8],"
-            + " _cluster_convergence_row_num=[ROW_NUMBER() OVER (PARTITION BY $8)])\n"
-            + "      LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
-            + " SAL=[$5], COMM=[$6], DEPTNO=[$7], cluster_label=[ITEM($8, CAST(ROW_NUMBER() OVER"
-            + " ()):INTEGER NOT NULL)])\n"
-            + "        LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
-            + " SAL=[$5], COMM=[$6], DEPTNO=[$7], _cluster_labels_array=[cluster_label($1,"
-            + " 0.8E0:DOUBLE, 'ngramset':VARCHAR, 'non-alphanumeric':VARCHAR, 50000, 10000) OVER"
-            + " ()])\n"
-            + "          LogicalFilter(condition=[IS NOT NULL($1)])\n"
-            + "            LogicalTableScan(table=[[scott, EMP]])\n";
+        "LogicalCluster(source=[$1], threshold=[0.8], match=[ngramset],"
+            + " delims=[non-alphanumeric], labelField=[cluster_label], showCount=[false],"
+            + " labelOnly=[false])\n"
+            + "  LogicalFilter(condition=[IS NOT NULL($1)])\n"
+            + "    LogicalTableScan(table=[[scott, EMP]])\n";
     verifyLogical(root, expectedLogical);
   }
 
@@ -134,21 +115,11 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
     RelNode root = getRelNode(ppl);
 
     String expectedLogical =
-        "LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4], SAL=[$5],"
-            + " COMM=[$6], DEPTNO=[$7], my_cluster=[$8])\n"
-            + "  LogicalFilter(condition=[=($9, 1)])\n"
-            + "    LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
-            + " SAL=[$5], COMM=[$6], DEPTNO=[$7], my_cluster=[$8],"
-            + " _cluster_convergence_row_num=[ROW_NUMBER() OVER (PARTITION BY $8)])\n"
-            + "      LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
-            + " SAL=[$5], COMM=[$6], DEPTNO=[$7], my_cluster=[ITEM($8, CAST(ROW_NUMBER() OVER"
-            + " ()):INTEGER NOT NULL)])\n"
-            + "        LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
-            + " SAL=[$5], COMM=[$6], DEPTNO=[$7], _cluster_labels_array=[cluster_label($1,"
-            + " 0.8E0:DOUBLE, 'termlist':VARCHAR, 'non-alphanumeric':VARCHAR, 50000, 10000) OVER"
-            + " ()])\n"
-            + "          LogicalFilter(condition=[IS NOT NULL($1)])\n"
-            + "            LogicalTableScan(table=[[scott, EMP]])\n";
+        "LogicalCluster(source=[$1], threshold=[0.8], match=[termlist],"
+            + " delims=[non-alphanumeric], labelField=[my_cluster], showCount=[false],"
+            + " labelOnly=[false])\n"
+            + "  LogicalFilter(condition=[IS NOT NULL($1)])\n"
+            + "    LogicalTableScan(table=[[scott, EMP]])\n";
     verifyLogical(root, expectedLogical);
   }
 
@@ -160,23 +131,11 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
     RelNode root = getRelNode(ppl);
 
     String expectedLogical =
-        "LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4], SAL=[$5],"
-            + " COMM=[$6], DEPTNO=[$7], cluster_id=[$8], cluster_size=[$9])\n"
-            + "  LogicalFilter(condition=[=($10, 1)])\n"
-            + "    LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
-            + " SAL=[$5], COMM=[$6], DEPTNO=[$7], cluster_id=[$8], cluster_size=[$9],"
-            + " _cluster_convergence_row_num=[ROW_NUMBER() OVER (PARTITION BY $8)])\n"
-            + "      LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
-            + " SAL=[$5], COMM=[$6], DEPTNO=[$7], cluster_id=[$8], cluster_size=[COUNT() OVER"
-            + " (PARTITION BY $8)])\n"
-            + "        LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
-            + " SAL=[$5], COMM=[$6], DEPTNO=[$7], cluster_id=[ITEM($8, CAST(ROW_NUMBER() OVER"
-            + " ()):INTEGER NOT NULL)])\n"
-            + "          LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
-            + " SAL=[$5], COMM=[$6], DEPTNO=[$7], _cluster_labels_array=[cluster_label($1,"
-            + " 0.7E0:DOUBLE, 'termset':VARCHAR, ' ', 50000, 10000) OVER ()])\n"
-            + "            LogicalFilter(condition=[IS NOT NULL($1)])\n"
-            + "              LogicalTableScan(table=[[scott, EMP]])\n";
+        "LogicalCluster(source=[$1], threshold=[0.7], match=[termset], delims=[ ],"
+            + " labelField=[cluster_id], countField=[cluster_size], showCount=[true],"
+            + " labelOnly=[false])\n"
+            + "  LogicalFilter(condition=[IS NOT NULL($1)])\n"
+            + "    LogicalTableScan(table=[[scott, EMP]])\n";
     verifyLogical(root, expectedLogical);
   }
 
@@ -200,7 +159,7 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
             + "FROM `scott`.`EMP`\n"
             + "WHERE `JOB` IS NOT NULL) `t0`) `t1`) `t2`\n"
             + "WHERE `_cluster_convergence_row_num` = 1";
-    verifyPPLToSparkSQL(root, expectedSparkSql);
+    verifyPPLToSparkSQL(lowerCluster(root), expectedSparkSql);
   }
 
   @Test
@@ -209,15 +168,11 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
     RelNode root = getRelNode(ppl);
 
     String expectedLogical =
-        "LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4], SAL=[$5],"
-            + " COMM=[$6], DEPTNO=[$7], cluster_label=[ITEM($8, CAST(ROW_NUMBER() OVER ()):INTEGER"
-            + " NOT NULL)])\n"
-            + "  LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
-            + " SAL=[$5], COMM=[$6], DEPTNO=[$7], _cluster_labels_array=[cluster_label($1,"
-            + " 0.8E0:DOUBLE, 'termlist':VARCHAR, 'non-alphanumeric':VARCHAR, 50000, 10000) OVER"
-            + " ()])\n"
-            + "    LogicalFilter(condition=[IS NOT NULL($1)])\n"
-            + "      LogicalTableScan(table=[[scott, EMP]])\n";
+        "LogicalCluster(source=[$1], threshold=[0.8], match=[termlist],"
+            + " delims=[non-alphanumeric], labelField=[cluster_label], showCount=[false],"
+            + " labelOnly=[true])\n"
+            + "  LogicalFilter(condition=[IS NOT NULL($1)])\n"
+            + "    LogicalTableScan(table=[[scott, EMP]])\n";
     verifyLogical(root, expectedLogical);
 
     String expectedSparkSql =
@@ -229,7 +184,7 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
             + " `_cluster_labels_array`\n"
             + "FROM `scott`.`EMP`\n"
             + "WHERE `ENAME` IS NOT NULL) `t0`";
-    verifyPPLToSparkSQL(root, expectedSparkSql);
+    verifyPPLToSparkSQL(lowerCluster(root), expectedSparkSql);
   }
 
   @Test
@@ -238,18 +193,11 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
     RelNode root = getRelNode(ppl);
 
     String expectedLogical =
-        "LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4], SAL=[$5],"
-            + " COMM=[$6], DEPTNO=[$7], cluster_label=[$8], cluster_count=[COUNT() OVER (PARTITION"
-            + " BY $8)])\n"
-            + "  LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
-            + " SAL=[$5], COMM=[$6], DEPTNO=[$7], cluster_label=[ITEM($8, CAST(ROW_NUMBER() OVER"
-            + " ()):INTEGER NOT NULL)])\n"
-            + "    LogicalProject(EMPNO=[$0], ENAME=[$1], JOB=[$2], MGR=[$3], HIREDATE=[$4],"
-            + " SAL=[$5], COMM=[$6], DEPTNO=[$7], _cluster_labels_array=[cluster_label($1,"
-            + " 0.8E0:DOUBLE, 'termlist':VARCHAR, 'non-alphanumeric':VARCHAR, 50000, 10000) OVER"
-            + " ()])\n"
-            + "      LogicalFilter(condition=[IS NOT NULL($1)])\n"
-            + "        LogicalTableScan(table=[[scott, EMP]])\n";
+        "LogicalCluster(source=[$1], threshold=[0.8], match=[termlist],"
+            + " delims=[non-alphanumeric], labelField=[cluster_label], countField=[cluster_count],"
+            + " showCount=[true], labelOnly=[true])\n"
+            + "  LogicalFilter(condition=[IS NOT NULL($1)])\n"
+            + "    LogicalTableScan(table=[[scott, EMP]])\n";
     verifyLogical(root, expectedLogical);
 
     String expectedSparkSql =
@@ -264,6 +212,6 @@ public class CalcitePPLClusterTest extends CalcitePPLAbstractTest {
             + " `_cluster_labels_array`\n"
             + "FROM `scott`.`EMP`\n"
             + "WHERE `ENAME` IS NOT NULL) `t0`) `t1`";
-    verifyPPLToSparkSQL(root, expectedSparkSql);
+    verifyPPLToSparkSQL(lowerCluster(root), expectedSparkSql);
   }
 }
